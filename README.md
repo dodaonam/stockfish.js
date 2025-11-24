@@ -68,7 +68,7 @@ Bot cờ vua tự động cho Chess.com sử dụng engine Stockfish 17.1 với 
 - **Số dương (+)**: Quân trắng đang ưu thế
 - **Số âm (-)**: Quân đen đang ưu thế
 - **M_X số**: Mate trong X nước
-- **D_Y + số**: Độ sâu Y hiện tại
+- **D_Y số**: Độ sâu Y hiện tại
 
 ## Phím tắt
 
