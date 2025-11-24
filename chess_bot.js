@@ -919,7 +919,7 @@ function main() {
             if(!btn || btn.disabled){return false;}
             var text = (btn.textContent || '').replace(/\s+/g,' ').trim().toLowerCase();
             if(!text){return false;}
-            return /new|play|again/.test(text);
+            return /new|min|mới|phút|1|3|5|10/.test(text);
         });
         if(!targetButton){
             targetButton = buttons.find(btn => btn && !btn.disabled);
