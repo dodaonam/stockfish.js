@@ -265,21 +265,28 @@ function computeWhiteCentipawns(){
     }
     const multiplier = searchContext.sideToMove === 'w' ? 1 : -1;
     if(evaluationState.type === 'mate'){
-        const sign = evaluationState.value * multiplier;
-        if(sign === 0){
-            return 0;
+        let mateValue = evaluationState.value;
+        if(mateValue === 0){
+            // "mate 0" means the side to move is already checkmated.
+            mateValue = -1;
         }
+        const sign = mateValue * multiplier;
         return sign > 0 ? 1000 : -1000;
     }
     return evaluationState.value * multiplier;
 }
 
 function centipawnsToWinFraction(cp){
-    if(cp === null){
+    if(cp === null || !isFinite(cp)){
         return 0.5;
     }
-    const clamped = clamp(cp, -1500, 1500);
-    return 1 / (1 + Math.exp(-clamped / 100));
+    if(evaluationState.type === 'mate'){
+        return cp > 0 ? 1.0 : 0.0;
+    }
+    const clamped = clamp(cp, -10000, 10000);
+    const evalPawns = clamped / 100;
+    const adjustedEval = Math.sign(evalPawns) * Math.pow(Math.abs(evalPawns), 0.85);
+    return 0.5 + 0.5 * Math.tanh(adjustedEval / 4);
 }
 
 function formatEvaluationScoreText() {
