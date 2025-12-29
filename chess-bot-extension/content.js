@@ -778,6 +778,7 @@ function main() {
     const myVars = document.myVars = {
         autoRun: false,
         autoMove: false,
+        evalOnly: false,
         autoNewGame: false,
         delay: 0.1,
         lastAutoNewGame: 0,
@@ -837,6 +838,9 @@ function main() {
     }
 
     myFunctions.color = function(moveData){
+        if(myVars.evalOnly){
+            return;
+        }
         const fromSquare = moveData.substring(0, 2);
         const toSquare = moveData.substring(2, 4);
 
@@ -1081,7 +1085,7 @@ function main() {
             const panel = document.createElement('div');
             panel.id = 'sf-panel';
             panel.className = 'sf-panel';
-            panel.innerHTML = `
+    panel.innerHTML = `
 <div id="overlay" class="sf-overlay" style="display:none;">
     <div class="sf-spinner"></div>
 </div>
@@ -1093,6 +1097,10 @@ function main() {
     <div class="sf-row sf-row--checkbox">
         <input type="checkbox" id="autoRun" name="autoRun" value="false">
         <label for="autoRun">Enable auto run</label>
+    </div>
+    <div class="sf-row sf-row--checkbox">
+        <input type="checkbox" id="evalOnly" name="evalOnly" value="false">
+        <label for="evalOnly">Eval bar only (no move hints)</label>
     </div>
     <div class="sf-row sf-row--checkbox">
         <input type="checkbox" id="autoMove" name="autoMove" value="false">
@@ -1163,11 +1171,20 @@ function main() {
                     board = getBoardElement();
                     
                     const autoRunCheckbox = $('#autoRun')[0];
+                    const evalOnlyCheckbox = $('#evalOnly')[0];
                     const autoMoveCheckbox = $('#autoMove')[0];
                     const depthText = $('#depthText')[0];
 
                     if (autoRunCheckbox) myVars.autoRun = autoRunCheckbox.checked;
+                    if (evalOnlyCheckbox) myVars.evalOnly = evalOnlyCheckbox.checked;
                     if (autoMoveCheckbox) myVars.autoMove = autoMoveCheckbox.checked;
+                    if (autoMoveCheckbox) {
+                        autoMoveCheckbox.disabled = !!myVars.evalOnly;
+                        if (myVars.evalOnly) {
+                            autoMoveCheckbox.checked = false;
+                            myVars.autoMove = false;
+                        }
+                    }
 
                     if (board && board.game && typeof board.game.getPlayingAs === 'function') {
                         const detectedColor = board.game.getPlayingAs();
@@ -1206,7 +1223,8 @@ function main() {
                         myFunctions.spinner();
                     }
 
-                    if (canGo && !isThinking && myTurn && ROOT_WINDOW.document.getElementById("autoRun")?.checked) {
+                    const shouldAutoRun = ROOT_WINDOW.document.getElementById("autoRun")?.checked || myVars.evalOnly;
+                    if (canGo && !isThinking && myTurn && shouldAutoRun) {
                         const minDelayVal = parseFloat(ROOT_WINDOW.document.getElementById("timeDelayMin")?.value) || 0.1;
                         const maxDelayVal = parseFloat(ROOT_WINDOW.document.getElementById("timeDelayMax")?.value) || 1;
                         await delay(minDelayVal, maxDelayVal);
