@@ -882,8 +882,10 @@ function main() {
         if(message.includes('bestmove')){
             const tokens = message.split(' ');
             const moveToken = tokens.length > 1 ? tokens[1] : '';
-            console.log('Best move:', moveToken);
-            myFunctions.color(moveToken);
+            if(!myVars.evalOnly){
+                console.log('Best move:', moveToken);
+                myFunctions.color(moveToken);
+            }
             isThinking = false;
             updateEvaluationBarDisplay();
         }
