@@ -1226,7 +1226,8 @@ function main() {
                     }
 
                     const shouldAutoRun = ROOT_WINDOW.document.getElementById("autoRun")?.checked || myVars.evalOnly;
-                    if (canGo && !isThinking && myTurn && shouldAutoRun) {
+                    const shouldAnalyzeTurn = myTurn || myVars.evalOnly;
+                    if (canGo && !isThinking && shouldAutoRun && shouldAnalyzeTurn) {
                         const minDelayVal = parseFloat(ROOT_WINDOW.document.getElementById("timeDelayMin")?.value) || 0.1;
                         const maxDelayVal = parseFloat(ROOT_WINDOW.document.getElementById("timeDelayMax")?.value) || 1;
                         await delay(minDelayVal, maxDelayVal);
