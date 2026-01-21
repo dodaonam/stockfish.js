@@ -121,7 +121,7 @@ window.setChessBotEnabled = function(enabled) {
     extensionEnabled = enabled;
     console.log('[Chess Bot] Extension ' + (enabled ? 'enabled' : 'disabled'));
     
-    const controlPanel = document.getElementById('sf-ctrl-panel');
+    const controlPanel = document.getElementById('sf-control-root') || document.getElementById('sf-ctrl-panel');
     if (controlPanel) {
         controlPanel.style.opacity = enabled ? '1' : '0.5';
         controlPanel.style.pointerEvents = enabled ? 'auto' : 'none';
@@ -129,7 +129,7 @@ window.setChessBotEnabled = function(enabled) {
     
     const evalRoot = document.getElementById('sf-eval-root');
     if (evalRoot) {
-        evalRoot.style.display = enabled ? '' : 'none';
+        evalRoot.style.display = shouldShowEvaluationBar() ? '' : 'none';
     }
     
     if (!enabled && typeof myFunctions !== 'undefined' && myFunctions.stopSf) {
@@ -316,9 +316,26 @@ function getAdvantage(playerColor) {
     return 'equal';
 }
 
+function shouldShowEvaluationBar() {
+    if (!extensionEnabled) {
+        return false;
+    }
+    const vars = document && document.myVars;
+    if (!vars) {
+        return false;
+    }
+    return !!(vars.autoRun || vars.evalOnly);
+}
+
 function updateEvaluationBarDisplay() {
     const root = ensureEvaluationBarRoot();
     if (!root) {
+        return;
+    }
+
+    const shouldShow = shouldShowEvaluationBar();
+    root.style.display = shouldShow ? '' : 'none';
+    if (!shouldShow) {
         return;
     }
     
@@ -837,6 +854,20 @@ function main() {
             });
     }
 
+    myFunctions.stopSf = function() {
+        if (engine.engine) {
+            try {
+                engine.engine.postMessage('stop');
+            } catch (error) {
+                console.warn('Failed to stop Stockfish engine:', error);
+            }
+        }
+        isThinking = false;
+        resetEvaluationState();
+        updateEvaluationBarDisplay();
+        ROOT_WINDOW.document.querySelectorAll('.highlight[data-test-element="highlight"]').forEach(node => node.remove());
+    }
+
     myFunctions.color = function(moveData){
         if(myVars.evalOnly){
             return;
@@ -882,7 +913,7 @@ function main() {
         if(message.includes('bestmove')){
             const tokens = message.split(' ');
             const moveToken = tokens.length > 1 ? tokens[1] : '';
-            if(!myVars.evalOnly){
+            if(!myVars.evalOnly && extensionEnabled){
                 console.log('Best move:', moveToken);
                 myFunctions.color(moveToken);
             }
@@ -939,6 +970,9 @@ function main() {
     }
 
     myFunctions.runChessEngine = function(depth){
+        if (!extensionEnabled) {
+            return;
+        }
         const fen = resolveCurrentFen();
         if(!fen){
             console.warn('No FEN available to send to Stockfish.');
@@ -961,7 +995,7 @@ function main() {
     }
 
     function handleDepthHotkeys(event){
-        if(event.defaultPrevented) return;
+        if(event.defaultPrevented || !extensionEnabled) return;
         
         const target = event.target;
         if(target){
