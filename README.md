@@ -4,8 +4,6 @@
 
 Chess Bot là extension hỗ trợ phân tích và gợi ý nước đi trên chess.com bằng Stockfish. Mục tiêu là giúp bạn học nhanh hơn, hiểu thế trận rõ hơn và luyện tập hiệu quả với giao diện trực quan.
 
-![Toggle Extension](assets/extension.png)
-
 **Phù hợp cho**
 - Người muốn luyện tập và phân tích ván cờ của mình.
 - Người mới chơi cần gợi ý nước đi để học nguyên tắc cơ bản.
