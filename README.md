@@ -1,89 +1,42 @@
-# Chess.com Bot - Stockfish 17.1
+# Chess Bot Extension
 
-Bot cờ vua tự động cho Chess.com sử dụng engine Stockfish 17.1 với NNUE.
+![Full Board UI](assets/image.png)
 
-## Tính năng chính
+Chess Bot là extension hỗ trợ phân tích và gợi ý nước đi trên chess.com bằng Stockfish. Mục tiêu là giúp bạn học nhanh hơn, hiểu thế trận rõ hơn và luyện tập hiệu quả với giao diện trực quan.
 
-### 🎯 Phân tích nước đi
-- Tự động tìm nước đi tốt nhất với engine Stockfish 17.1
-- Điều chỉnh độ sâu phân tích (depth)
-- Hiển thị evaluation bar (thanh đánh giá) trực quan ngay trong ván cờ
+![Toggle Extension](assets/extension.png)
 
-### 🤖 Chế độ tự động
-- **Auto-run**: Tự động phân tích và tìm nước đi tốt nhất
-- **Auto-move**: Tự động phân tích, tìm nước đi tốt nhất và thực hiện nước đi
-- **Auto new game**: Tự động bắt đầu ván mới
-- **Random delay**: Thêm độ trễ ngẫu nhiên để giống người chơi thật
+**Phù hợp cho**
+- Người muốn luyện tập và phân tích ván cờ của mình.
+- Người mới chơi cần gợi ý nước đi để học nguyên tắc cơ bản.
+- Người chơi trung cấp muốn theo dõi đánh giá thế trận (eval bar).
 
-### 📊 Giao diện
-- Nút điều khiển ở góc dưới phải
-- Panel cài đặt gọn gàng, dễ sử dụng
-- Evaluation bar hiển thị trực quan tình thế
+**Tính năng**
+- Gợi ý nước đi tốt nhất.
+![Auto Run](assets/suggestion.png)
+- Thanh đánh giá thế trận dễ hiểu.
+![Eval Bar](assets/eval_bar.gif)
+- Tự đi theo gợi ý.
+![Auto Move](assets/auto_move.gif)
+- Tùy chỉnh độ trễ để tự nhiên hơn.
+- Tự bắt đầu ván mới khi kết thúc (Auto New Game).
 
-## Cài đặt
 
-### 1. Cài Tampermonkey
+**Cài đặt**
+1. Mở Chrome và vào `chrome://extensions`.
+2. Bật `Developer mode`.
+3. Chọn `Load unpacked` và trỏ tới thư mục `chess-bot-extension`.
 
-### 2. Cài script
-1. Mở Tampermonkey
-2. Creat a new script
-3. Paste nội dung script `chess_bot.js`
-4. Lưu script
+**Cách sử dụng**
+1. Vào `chess.com` và mở một ván chơi hoặc puzzle.
+2. Bấm icon extension để bật/tắt toàn bộ.
+3. Trên bàn cờ sẽ xuất hiện nút tròn. Bấm để mở bảng điều khiển.
+4. Chọn các tùy chọn theo nhu cầu (Auto Run, Eval bar only, Auto Move…).
 
-### 3. Truy cập Chess.com
-- Vào [chess.com/play/computer](https://www.chess.com/play/computer) và sử dụng
+**Phím tắt độ sâu phân tích**
+- Phím tắt điều chỉnh depth là các phím trên bàn phím từ `Q` đến `M` tương đương độ sâu từ 1 - 26.
 
-## Hướng dẫn sử dụng
-
-### Mở bảng điều khiển
-- Click vào **nút tròn** ở góc dưới phải màn hình
-- Giao diện sẽ hiện ra
-
-### Điều chỉnh độ sâu phân tích
-- Nhấn phím từ `Q-M` trên bàn phím
-- Depth càng cao = phân tích càng mạnh nhưng chậm hơn
-
-### Bật/tắt Auto-run
-1. Mở panel điều khiển
-2. Tích chọn **"Auto-run"**
-3. Tự động tìm nước tốt nhất
-
-### Bật/tắt Auto-move
-1. Mở panel điều khiển
-2. Tích chọn **"Auto-move"**
-3. Tự động đi nước tốt nhất
-
-### Bật/tắt Auto new game
-1. Mở panel điều khiển
-2. Tích chọn **"Auto New Game"**
-3. Sau khi ván đấu kết thúc, bot sẽ tự động bắt đầu ván mới
-
-### Random delay
-1. Mở panel điều khiển
-1. Nhập thời gian (giây)
-2. Bot sẽ thêm độ trễ ngẫu nhiên giữa các nước đi
-
-### Đọc evaluation bar
-- **Thanh trắng/đen**: Thể hiện ưu thế của mỗi bên
-- **Số dương (+)**: Quân trắng đang ưu thế
-- **Số âm (-)**: Quân đen đang ưu thế
-- **M_X số**: Mate trong X nước
-- **D_Y + số**: Độ sâu Y hiện tại
-
-## Phím tắt
-
-| Phím | Chức năng |
-|------|-----------|
-| `Q-M` | Đặt depth = 1-26 |
-| Click nút tròn | Mở/đóng panel |
-
-## Lưu ý
-
-⚠️ **Chú ý quan trọng**:
-- Sử dụng bot có thể vi phạm điều khoản của Chess.com
-- Chỉ dùng cho mục đích học tập và nghiên cứu
-- Tác giả không chịu trách nhiệm về việc tài khoản bị khóa
-
----
-
-*Script được phát triển cho mục đích giáo dục. Sử dụng có trách nhiệm.*
+**Lưu ý**
+- Tuân thủ quy định Fair Play của chess.com.
+- Extension này phù hợp cho mục đích học tập, phân tích và luyện tập cá nhân.
+- Tránh dùng trong các ván xếp hạng hoặc giải đấu trực tuyến.

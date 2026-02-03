@@ -123,7 +123,8 @@ window.setChessBotEnabled = function(enabled) {
     
     const controlPanel = document.getElementById('sf-control-root') || document.getElementById('sf-ctrl-panel');
     if (controlPanel) {
-        controlPanel.style.opacity = enabled ? '1' : '0.5';
+        controlPanel.style.display = enabled ? '' : 'none';
+        controlPanel.style.opacity = '1';
         controlPanel.style.pointerEvents = enabled ? 'auto' : 'none';
     }
     
