@@ -231,7 +231,12 @@
         }
 
         const depthCap = Math.max(1, Math.min(14, Math.floor(runtime.lastValue) || config.DEFAULT_DEPTH));
-        const precomputeKey = `${currentFen}::${depthCap}`;
+        const precomputeKey = (typeof ChessBot.classifier.getCacheKey === 'function')
+            ? ChessBot.classifier.getCacheKey(currentFen, depthCap)
+            : `${currentFen}::${depthCap}`;
+        if (!precomputeKey) {
+            return;
+        }
         const now = Date.now();
 
         if (classification.precomputeLastKey === precomputeKey

@@ -16,25 +16,66 @@
     } = ChessBot.state;
 
     const BOOTSTRAP_PATTERN = 'a=decodeURIComponent(e[0]||location.origin+location.pathname.replace(/\\.js$/i,".wasm"))';
-    const CLASSIFICATION_DEPTH_CAP = 14;
+    const CLASSIFICATION_POLICY = Object.freeze({
+        eps: 1e-4,
+        depthCap: 14,
+        cpFloorInSaturation: Object.freeze({
+            enabled: true,
+            lowEpBound: 0.15,
+            highEpBound: 0.85,
+            thresholds: Object.freeze([
+                Object.freeze({ label: 'blunder', minCpLoss: 220 }),
+                Object.freeze({ label: 'mistake', minCpLoss: 120 }),
+                Object.freeze({ label: 'inaccuracy', minCpLoss: 60 })
+            ])
+        }),
+        thresholds: Object.freeze([
+            Object.freeze({ label: 'excellent', max: 0.02 }),
+            Object.freeze({ label: 'good', max: 0.05 }),
+            Object.freeze({ label: 'inaccuracy', max: 0.10 }),
+            Object.freeze({ label: 'mistake', max: 0.20 })
+        ])
+    });
+    const CLASSIFICATION_LABEL_RANK = Object.freeze({
+        best: 0,
+        excellent: 1,
+        good: 2,
+        inaccuracy: 3,
+        mistake: 4,
+        blunder: 5
+    });
     const CLASSIFICATION_TIMEOUT_MS = 12000;
-    const CLASSIFICATION_EPS = 1e-4;
-    const CLASSIFIER_THREADS = 4;
+    const CLASSIFIER_OPTIONS = Object.freeze({
+        threads: 4,
+        multiPv: 1,
+        uciShowWdl: true
+    });
     const BEST_CACHE_MAX_ENTRIES = 96;
-
     const bestSnapshotCache = new Map();
     const precomputeRuntime = {
         key: null,
         promise: null
     };
-    const mainEngineBest = {
-        fen: null,
-        requestedDepth: 0,
-        snapshot: null,
-        bestMove: null,
-        finalized: false,
-        active: false
-    };
+
+    function resolveClassifierScriptSourceToken() {
+        const runtimeSource = typeof runtime.stockfishResolvedScriptURL === 'string'
+            ? runtime.stockfishResolvedScriptURL.trim()
+            : '';
+        if (runtimeSource) {
+            return runtimeSource.split('?')[0];
+        }
+
+        const configuredSource = Array.isArray(config.STOCKFISH_SCRIPT_SOURCES)
+            ? (config.STOCKFISH_SCRIPT_SOURCES[0] || '')
+            : '';
+        return typeof configuredSource === 'string' && configuredSource.trim()
+            ? configuredSource.trim().split('?')[0]
+            : 'unknown-engine';
+    }
+
+    function getClassifierProfileKey() {
+        return `${CLASSIFIER_OPTIONS.threads}|${CLASSIFIER_OPTIONS.multiPv}|${CLASSIFIER_OPTIONS.uciShowWdl ? 'wdl1' : 'wdl0'}|${resolveClassifierScriptSourceToken()}`;
+    }
 
     function normalizeEngineScore(type, value) {
         if (type === 'mate') {
@@ -55,7 +96,7 @@
     }
 
     function normalizeClassificationDepth(depthCap) {
-        return Math.max(1, Math.min(CLASSIFICATION_DEPTH_CAP, Math.floor(depthCap) || CLASSIFICATION_DEPTH_CAP));
+        return Math.max(1, Math.min(CLASSIFICATION_POLICY.depthCap, Math.floor(depthCap) || CLASSIFICATION_POLICY.depthCap));
     }
 
     function clearClassifierPending(reason = 'cancelled') {
@@ -136,7 +177,7 @@
             const w = parseInt(wdlMatch[1], 10);
             const d = parseInt(wdlMatch[2], 10);
             const l = parseInt(wdlMatch[3], 10);
-            if (Number.isFinite(w) && Number.isFinite(d) && Number.isFinite(l)) {
+            if (isValidWdl({ w, d, l })) {
                 snapshot.wdl = { w, d, l };
                 snapshot.depth = depthValue;
             }
@@ -162,22 +203,44 @@
         };
     }
 
+    function isValidWdl(wdl) {
+        if (!wdl) {
+            return false;
+        }
+        const { w, d, l } = wdl;
+        if (!Number.isFinite(w) || !Number.isFinite(d) || !Number.isFinite(l)) {
+            return false;
+        }
+        if (w < 0 || d < 0 || l < 0) {
+            return false;
+        }
+        return (w + d + l) > 0;
+    }
+
     function hasUsableWdl(snapshot, minDepth = 1) {
         if (!snapshot || !Number.isFinite(snapshot.depth) || snapshot.depth < minDepth) {
             return false;
         }
-        return !!(snapshot.wdl
-            && Number.isFinite(snapshot.wdl.w)
-            && Number.isFinite(snapshot.wdl.d)
-            && Number.isFinite(snapshot.wdl.l));
+        return isValidWdl(snapshot.wdl);
     }
 
     function hasTrustedUciMove(move) {
         return typeof move === 'string' && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move);
     }
 
-    function makeBestSnapshotCacheKey(fen, depth) {
-        return `${fen}::${depth}`;
+    function makeBestSnapshotCacheKey(fen, depth, profileKey) {
+        const effectiveProfileKey = typeof profileKey === 'string' && profileKey
+            ? profileKey
+            : getClassifierProfileKey();
+        return `${fen}::${depth}::${effectiveProfileKey}`;
+    }
+
+    function getBestSnapshotCacheKey(fen, depthCap) {
+        if (typeof fen !== 'string' || !fen.trim()) {
+            return null;
+        }
+        const safeDepth = normalizeClassificationDepth(depthCap);
+        return makeBestSnapshotCacheKey(fen.trim(), safeDepth, getClassifierProfileKey());
     }
 
     function trimBestSnapshotCache() {
@@ -190,16 +253,16 @@
         }
     }
 
-    function readBestSnapshotCacheEntry(fen, depth) {
+    function readBestSnapshotCacheEntry(fen, depth, profileKey) {
         if (typeof fen !== 'string' || !fen.trim()) {
             return null;
         }
         const safeDepth = normalizeClassificationDepth(depth);
-        const key = makeBestSnapshotCacheKey(fen.trim(), safeDepth);
+        const key = makeBestSnapshotCacheKey(fen.trim(), safeDepth, profileKey);
         return bestSnapshotCache.get(key) || null;
     }
 
-    function canReuseBestSnapshot(snapshotMeta, fen, depth) {
+    function canReuseBestSnapshot(snapshotMeta, fen, depth, profileKey) {
         if (!snapshotMeta || typeof fen !== 'string' || !fen.trim()) {
             return false;
         }
@@ -209,13 +272,13 @@
         if (snapshotMeta.fen !== normalizedFen) {
             return false;
         }
+        if (snapshotMeta.profileKey !== profileKey) {
+            return false;
+        }
         if (!snapshotMeta.hasWdl || snapshotMeta.depth < safeDepth) {
             return false;
         }
         if (!hasUsableWdl(snapshotMeta.snapshot, safeDepth)) {
-            return false;
-        }
-        if (snapshotMeta.source === 'main-engine' && snapshotMeta.finalized !== true) {
             return false;
         }
         return true;
@@ -231,88 +294,50 @@
             return;
         }
 
+        const profileKey = typeof options.profileKey === 'string' && options.profileKey
+            ? options.profileKey
+            : getClassifierProfileKey();
         const normalizedFen = fen.trim();
         const normalizedSnapshot = cloneSnapshot(snapshot);
         const entry = {
             fen: normalizedFen,
+            profileKey,
             source: options.source || 'classifier',
             depth: Number.isFinite(normalizedSnapshot.depth) ? normalizedSnapshot.depth : safeDepth,
             hasWdl: true,
-            finalized: options.finalized === true,
             cachedAt: Date.now(),
             snapshot: normalizedSnapshot
         };
-        const key = makeBestSnapshotCacheKey(normalizedFen, safeDepth);
+        const key = makeBestSnapshotCacheKey(normalizedFen, safeDepth, profileKey);
         bestSnapshotCache.delete(key);
         bestSnapshotCache.set(key, entry);
         trimBestSnapshotCache();
     }
 
-    function resetMainEngineBest() {
-        mainEngineBest.fen = null;
-        mainEngineBest.requestedDepth = 0;
-        mainEngineBest.snapshot = null;
-        mainEngineBest.bestMove = null;
-        mainEngineBest.finalized = false;
-        mainEngineBest.active = false;
-    }
-
-    function beginMainEngineBestTracking(fen, depth) {
-        if (typeof fen !== 'string' || !fen.trim()) {
-            resetMainEngineBest();
+    function incrementClassificationCounter(counterName) {
+        if (!classification || typeof counterName !== 'string' || !counterName) {
             return;
         }
-
-        mainEngineBest.fen = fen.trim();
-        mainEngineBest.requestedDepth = Math.max(1, Math.floor(depth) || 1);
-        mainEngineBest.snapshot = {
-            bestMove: null,
-            scoreType: null,
-            scoreValue: null,
-            depth: -1,
-            wdl: null
-        };
-        mainEngineBest.bestMove = null;
-        mainEngineBest.finalized = false;
-        mainEngineBest.active = true;
+        const currentValue = Number.isFinite(classification[counterName]) ? classification[counterName] : 0;
+        classification[counterName] = currentValue + 1;
     }
 
-    function buildMainEngineSnapshotEntry(fen) {
-        if (typeof fen !== 'string' || !fen.trim()) {
-            return null;
-        }
-        if (mainEngineBest.fen !== fen.trim() || !mainEngineBest.snapshot) {
-            return null;
-        }
-
-        const snapshot = cloneSnapshot(mainEngineBest.snapshot);
-        if (hasTrustedUciMove(mainEngineBest.bestMove)) {
-            snapshot.bestMove = mainEngineBest.bestMove;
-        }
-
-        return {
-            fen: mainEngineBest.fen,
-            source: 'main-engine',
-            depth: Number.isFinite(snapshot.depth) ? snapshot.depth : -1,
-            hasWdl: hasUsableWdl(snapshot, 1),
-            finalized: mainEngineBest.finalized === true,
-            cachedAt: Date.now(),
-            snapshot
-        };
-    }
-
-    function resolveBestSnapshotForFenDepth(fen, depth) {
+    function resolveBestSnapshotForFenDepth(fen, depth, profileKey) {
         if (typeof fen !== 'string' || !fen.trim()) {
             return null;
         }
 
         const normalizedFen = fen.trim();
         const safeDepth = normalizeClassificationDepth(depth);
-        const cachedEntry = readBestSnapshotCacheEntry(normalizedFen, safeDepth);
-        if (canReuseBestSnapshot(cachedEntry, normalizedFen, safeDepth)) {
+        const effectiveProfileKey = typeof profileKey === 'string' && profileKey
+            ? profileKey
+            : getClassifierProfileKey();
+        const cachedEntry = readBestSnapshotCacheEntry(normalizedFen, safeDepth, effectiveProfileKey);
+        if (canReuseBestSnapshot(cachedEntry, normalizedFen, safeDepth, effectiveProfileKey)) {
             ChessBot.logger.debug('Move classification best snapshot cache hit', {
                 source: cachedEntry.source,
-                depth: safeDepth
+                depth: safeDepth,
+                profileKey: effectiveProfileKey
             });
             return {
                 snapshot: cloneSnapshot(cachedEntry.snapshot),
@@ -321,54 +346,15 @@
             };
         }
 
-        const mainEntry = buildMainEngineSnapshotEntry(normalizedFen);
-        if (canReuseBestSnapshot(mainEntry, normalizedFen, safeDepth)) {
-            writeBestSnapshotCache(normalizedFen, safeDepth, mainEntry.snapshot, {
-                source: 'main-engine',
-                finalized: true
-            });
-            ChessBot.logger.debug('Move classification best snapshot reused from main engine', {
-                depth: safeDepth
-            });
-            return {
-                snapshot: cloneSnapshot(mainEntry.snapshot),
-                source: 'main-engine',
-                trustedBestMove: false
-            };
-        }
-
         ChessBot.logger.debug('Move classification best snapshot cache miss', {
-            depth: safeDepth
+            depth: safeDepth,
+            profileKey: effectiveProfileKey
         });
         return null;
     }
 
-    function finalizeMainEngineBest(bestMove) {
-        if (!mainEngineBest.fen || !mainEngineBest.snapshot) {
-            return;
-        }
-
-        if (hasTrustedUciMove(bestMove)) {
-            mainEngineBest.bestMove = bestMove.toLowerCase();
-            mainEngineBest.snapshot.bestMove = mainEngineBest.bestMove;
-        }
-
-        mainEngineBest.finalized = true;
-        mainEngineBest.active = false;
-        const safeDepth = normalizeClassificationDepth(mainEngineBest.requestedDepth);
-        const candidateEntry = buildMainEngineSnapshotEntry(mainEngineBest.fen);
-        if (!canReuseBestSnapshot(candidateEntry, mainEngineBest.fen, safeDepth)) {
-            return;
-        }
-
-        writeBestSnapshotCache(mainEngineBest.fen, safeDepth, candidateEntry.snapshot, {
-            source: 'main-engine',
-            finalized: true
-        });
-    }
-
     function expectedPointsFromAnalysis(snapshot) {
-        if (snapshot && snapshot.wdl) {
+        if (snapshot && isValidWdl(snapshot.wdl)) {
             const { w, d, l } = snapshot.wdl;
             const total = w + d + l;
             if (Number.isFinite(total) && total > 0) {
@@ -392,22 +378,53 @@
         if (!Number.isFinite(epl) || epl < 0) {
             return null;
         }
-        if (epl <= CLASSIFICATION_EPS) {
+        if (epl <= CLASSIFICATION_POLICY.eps) {
             return 'best';
         }
-        if (epl <= 0.02) {
-            return 'excellent';
-        }
-        if (epl <= 0.05) {
-            return 'good';
-        }
-        if (epl <= 0.10) {
-            return 'inaccuracy';
-        }
-        if (epl <= 0.20) {
-            return 'mistake';
+        for (const threshold of CLASSIFICATION_POLICY.thresholds) {
+            if (epl <= threshold.max) {
+                return threshold.label;
+            }
         }
         return 'blunder';
+    }
+
+    function classifyByCpLoss(cpLoss) {
+        if (!Number.isFinite(cpLoss) || cpLoss < 0) {
+            return null;
+        }
+        for (const threshold of CLASSIFICATION_POLICY.cpFloorInSaturation.thresholds) {
+            if (cpLoss >= threshold.minCpLoss) {
+                return threshold.label;
+            }
+        }
+        return null;
+    }
+
+    function shouldApplyCpFloor(epBest) {
+        if (!CLASSIFICATION_POLICY.cpFloorInSaturation.enabled || !Number.isFinite(epBest)) {
+            return false;
+        }
+        const { lowEpBound, highEpBound } = CLASSIFICATION_POLICY.cpFloorInSaturation;
+        return epBest <= lowEpBound || epBest >= highEpBound;
+    }
+
+    function chooseWorseLabel(baseLabel, floorLabel) {
+        if (!baseLabel) {
+            return floorLabel || null;
+        }
+        if (!floorLabel) {
+            return baseLabel;
+        }
+        const baseRank = CLASSIFICATION_LABEL_RANK[baseLabel];
+        const floorRank = CLASSIFICATION_LABEL_RANK[floorLabel];
+        if (!Number.isFinite(baseRank)) {
+            return floorLabel;
+        }
+        if (!Number.isFinite(floorRank)) {
+            return baseLabel;
+        }
+        return floorRank > baseRank ? floorLabel : baseLabel;
     }
 
     function handleEngineInfoLine(message) {
@@ -477,10 +494,6 @@
             engineMetrics.lastScoreValue = nextValue;
         }
 
-        if (mainEngineBest.active && runtime.isThinking && mainEngineBest.snapshot) {
-            updateClassifierSnapshot(message, mainEngineBest.snapshot);
-        }
-
         ChessBot.evalBar.updateEvaluationBarDisplay();
     }
 
@@ -529,7 +542,10 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
                 const wasmURL = config.STOCKFISH_WASM_SOURCES[i] || config.STOCKFISH_WASM_SOURCES[0];
 
                 try {
-                    return await buildWorkerURL(scriptURL, wasmURL);
+                    const workerUrl = await buildWorkerURL(scriptURL, wasmURL);
+                    runtime.stockfishResolvedScriptURL = scriptURL;
+                    runtime.stockfishResolvedWasmURL = wasmURL;
+                    return workerUrl;
                 } catch (error) {
                     lastError = error;
                     ChessBot.logger.warn(`Stockfish source failed: ${scriptURL}`, error);
@@ -537,6 +553,8 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
             }
 
             runtime.stockfishWorkerURLPromise = null;
+            runtime.stockfishResolvedScriptURL = null;
+            runtime.stockfishResolvedWasmURL = null;
             throw lastError || new Error('Unable to fetch any Stockfish source.');
         })();
 
@@ -593,9 +611,9 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
             resetClassifierWorker('worker-error');
         };
 
-        worker.postMessage(`setoption name Threads value ${CLASSIFIER_THREADS}`);
-        worker.postMessage('setoption name MultiPV value 1');
-        worker.postMessage('setoption name UCI_ShowWDL value true');
+        worker.postMessage(`setoption name Threads value ${CLASSIFIER_OPTIONS.threads}`);
+        worker.postMessage(`setoption name MultiPV value ${CLASSIFIER_OPTIONS.multiPv}`);
+        worker.postMessage(`setoption name UCI_ShowWDL value ${CLASSIFIER_OPTIONS.uciShowWdl ? 'true' : 'false'}`);
         worker.postMessage('ucinewgame');
         classifierRuntime.worker = worker;
         return worker;
@@ -706,7 +724,13 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
                 throw createCancelledError('stale-job');
             }
 
-            const bestResolution = resolveBestSnapshotForFenDepth(fen, safeDepth);
+            const profileKey = getClassifierProfileKey();
+            const bestResolution = resolveBestSnapshotForFenDepth(fen, safeDepth, profileKey);
+            if (bestResolution) {
+                incrementClassificationCounter('cacheHitCount');
+            } else {
+                incrementClassificationCounter('cacheMissCount');
+            }
             let bestSnapshot = bestResolution ? bestResolution.snapshot : null;
             let bestSource = bestResolution ? bestResolution.source : 'classifier';
             let trustedBestMove = !!(bestResolution && bestResolution.trustedBestMove === true);
@@ -718,7 +742,7 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
                 });
                 writeBestSnapshotCache(fen, safeDepth, bestSnapshot, {
                     source: 'classifier',
-                    finalized: true
+                    profileKey
                 });
                 trustedBestMove = true;
                 bestSource = 'classifier';
@@ -753,12 +777,43 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
 
             const epBest = expectedPointsFromAnalysis(bestSnapshot);
             const epPlayed = expectedPointsFromAnalysis(playedSnapshot);
-            const epl = Math.max(0, epBest - epPlayed);
-            const label = classifyByExpectedPointsLoss(epl);
+            const bestScore = normalizeEngineScore(bestSnapshot.scoreType, bestSnapshot.scoreValue);
+            const playedScore = normalizeEngineScore(playedSnapshot.scoreType, playedSnapshot.scoreValue);
+            const cpLoss = Number.isFinite(bestScore) && Number.isFinite(playedScore)
+                ? Math.max(0, bestScore - playedScore)
+                : null;
+            const rawDelta = epBest - epPlayed;
+            if (rawDelta < 0) {
+                incrementClassificationCounter('negativeDeltaCount');
+                ChessBot.logger.debug('Move classification negative raw delta detected', {
+                    rawDelta,
+                    depth: safeDepth,
+                    bestSource
+                });
+            }
+            const epl = Math.max(0, rawDelta);
+            const epLabel = classifyByExpectedPointsLoss(epl);
+            const cpFloorLabel = shouldApplyCpFloor(epBest) ? classifyByCpLoss(cpLoss) : null;
+            const label = chooseWorseLabel(epLabel, cpFloorLabel);
+            if (cpFloorLabel && cpFloorLabel !== epLabel) {
+                ChessBot.logger.debug('Move classification cp floor applied', {
+                    epBest,
+                    epl,
+                    cpLoss,
+                    epLabel,
+                    cpFloorLabel,
+                    finalLabel: label
+                });
+            }
+            incrementClassificationCounter('classificationCount');
 
             return {
                 epBest,
                 epPlayed,
+                cpLoss,
+                epLabel,
+                cpFloorLabel,
+                rawDelta,
                 epl,
                 label,
                 depth: safeDepth,
@@ -780,7 +835,8 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
         }
 
         const safeDepth = normalizeClassificationDepth(depthCap);
-        if (resolveBestSnapshotForFenDepth(normalizedFen, safeDepth)) {
+        const profileKey = getClassifierProfileKey();
+        if (resolveBestSnapshotForFenDepth(normalizedFen, safeDepth, profileKey)) {
             ChessBot.logger.debug('Move classification precompute skipped', {
                 reason: 'cache-hit',
                 depth: safeDepth
@@ -788,7 +844,7 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
             return true;
         }
 
-        const key = makeBestSnapshotCacheKey(normalizedFen, safeDepth);
+        const key = makeBestSnapshotCacheKey(normalizedFen, safeDepth, profileKey);
         if (precomputeRuntime.promise && precomputeRuntime.key === key) {
             ChessBot.logger.debug('Move classification precompute skipped', {
                 reason: 'dedupe',
@@ -806,7 +862,7 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
 
         const promise = (async () => {
             try {
-                if (resolveBestSnapshotForFenDepth(normalizedFen, safeDepth)) {
+                if (resolveBestSnapshotForFenDepth(normalizedFen, safeDepth, profileKey)) {
                     ChessBot.logger.debug('Move classification precompute skipped', {
                         reason: 'cache-hit',
                         depth: safeDepth
@@ -837,7 +893,7 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
                 });
                 writeBestSnapshotCache(normalizedFen, safeDepth, bestSnapshot, {
                     source: 'precompute',
-                    finalized: true
+                    profileKey
                 });
                 return true;
             } catch (error) {
@@ -864,7 +920,6 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
         bestSnapshotCache.clear();
         precomputeRuntime.key = null;
         precomputeRuntime.promise = null;
-        resetMainEngineBest();
         resetClassifierWorker('reset');
     }
 
@@ -895,7 +950,6 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
         }
 
         const moveToken = parseBestMove(message);
-        finalizeMainEngineBest(moveToken);
         const shouldApplyMoveHint = !myVars.evalOnly
             && runtime.extensionEnabled
             && searchContext.isPlayerTurn === true
@@ -953,6 +1007,8 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
         }
 
         runtime.stockfishWorkerURLPromise = null;
+        runtime.stockfishResolvedScriptURL = null;
+        runtime.stockfishResolvedWasmURL = null;
         runtime.isThinking = false;
         ChessBot.evalBar.resetEvaluationState();
         loadChessEngine();
@@ -1014,7 +1070,6 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
         }
 
         myVars.lastAnalyzedFen = fen;
-        beginMainEngineBestTracking(fen, depth);
         engine.engine.postMessage(`position fen ${fen}`);
         runtime.isThinking = true;
         engine.engine.postMessage(`go depth ${depth}`);
@@ -1046,6 +1101,7 @@ self.Module.locateFile = self.Module.locateFile || function(path) {
         classifyMove,
         precomputeBest: precomputeBestSnapshot,
         prepare: prepareClassifier,
+        getCacheKey: getBestSnapshotCacheKey,
         reset: resetClassifier,
         reload: reloadClassifier
     };

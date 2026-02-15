@@ -63,6 +63,8 @@
         extensionEnabled: true,
         stockfishWorkerURLPromise: null,
         stockfishObjectURL: null,
+        stockfishResolvedScriptURL: null,
+        stockfishResolvedWasmURL: null,
         isInActiveGame: false,
         confirmedPlayerColor: null,
         gameOverLockedFen: null,
@@ -116,7 +118,11 @@
         inFlight: false,
         lastMoveKey: null,
         precomputeLastKey: null,
-        precomputeLastAt: 0
+        precomputeLastAt: 0,
+        classificationCount: 0,
+        negativeDeltaCount: 0,
+        cacheHitCount: 0,
+        cacheMissCount: 0
     };
 
     const myVars = document.myVars = {
