@@ -7,14 +7,15 @@ chrome.storage.local.get(['extensionEnabled'], (result) => {
 enableToggle.addEventListener('change', () => {
   const enabled = enableToggle.checked;
   chrome.storage.local.set({ extensionEnabled: enabled }, () => {
-    // Notify content script
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0] && tabs[0].url && tabs[0].url.includes('chess.com')) {
-        chrome.tabs.sendMessage(tabs[0].id, { 
-          type: 'TOGGLE_EXTENSION', 
-          enabled: enabled 
-        }).catch(() => {});
-      }
+    chrome.tabs.query({ url: ['*://www.chess.com/*'] }, (tabs) => {
+      tabs.forEach((tab) => {
+        if (tab && typeof tab.id === 'number') {
+          chrome.tabs.sendMessage(tab.id, {
+            type: 'TOGGLE_EXTENSION',
+            enabled
+          }).catch(() => {});
+        }
+      });
     });
   });
 });
