@@ -15,8 +15,7 @@
     {
       "matches": [
         "https://www.chess.com/play/*",
-        "https://www.chess.com/game/*",
-        "https://www.chess.com/puzzles/*"
+        "https://www.chess.com/game/*"
       ],
       "js": ["bridge.js"],
       "run_at": "document_start",
@@ -25,8 +24,7 @@
     {
       "matches": [
         "https://www.chess.com/play/*",
-        "https://www.chess.com/game/*",
-        "https://www.chess.com/puzzles/*"
+        "https://www.chess.com/game/*"
       ],
       "js": [
         "core/logger.js",
@@ -34,6 +32,7 @@
         "adapters/chesscom-dom.js",
         "core/time-delay.js",
         "ui/eval-bar.js",
+        "ui/move-classification-overlay.js",
         "ui/control-panel.js",
         "engine/stockfish.js",
         "automation/scheduler.js",

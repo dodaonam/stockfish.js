@@ -8,8 +8,10 @@
         myVars,
         myFunctions,
         evaluationState,
-        engineMetrics
+        engineMetrics,
+        classification
     } = ChessBot.state;
+    const PRECOMPUTE_MIN_INTERVAL_MS = 500;
 
     function delay(minS, maxS) {
         return new Promise(resolve => {
@@ -105,6 +107,9 @@
 
         if (!enabled && typeof ChessBot.engine.stopSf === 'function') {
             ChessBot.engine.stopSf();
+            resetMoveClassificationState(true);
+        } else if (enabled) {
+            classification.lastFen = ChessBot.dom.resolveCurrentFen() || classification.lastFen;
         }
     }
 
@@ -126,6 +131,9 @@
                         myVars.lastHumanDelaySec = null;
                         myVars.lastAnalyzedFen = null;
                         ChessBot.timing.resetTempoStats();
+                        runtime.gameOverLockedFen = null;
+                        runtime.gameOverModalSeen = false;
+                        resetMoveClassificationState(false);
                     }
                     myVars.lastObservedFen = fen;
                 }
@@ -147,6 +155,197 @@
     function shouldAnalyzeCurrentTurn() {
         const autoRunCheckbox = document.getElementById('autoRun');
         return !!(autoRunCheckbox?.checked || myVars.evalOnly);
+    }
+
+    function shouldPauseForGameOver(currentFen) {
+        const modalVisible = typeof ChessBot.dom.isGameOverModalVisible === 'function'
+            ? ChessBot.dom.isGameOverModalVisible()
+            : false;
+
+        if (modalVisible) {
+            if (!runtime.gameOverModalSeen && typeof ChessBot.engine.stopSf === 'function') {
+                ChessBot.engine.stopSf();
+                resetMoveClassificationState(false);
+            }
+            runtime.gameOverModalSeen = true;
+            if (currentFen) {
+                runtime.gameOverLockedFen = currentFen;
+            }
+            runtime.isInActiveGame = false;
+            return true;
+        }
+
+        if (runtime.gameOverLockedFen) {
+            if (!currentFen || currentFen === runtime.gameOverLockedFen) {
+                runtime.isInActiveGame = false;
+                return true;
+            }
+            runtime.gameOverLockedFen = null;
+            runtime.gameOverModalSeen = false;
+        }
+
+        return false;
+    }
+
+    function shouldRunMoveClassification() {
+        if (!runtime.extensionEnabled) {
+            return false;
+        }
+        if (!(myVars.autoRun || myVars.evalOnly || myVars.autoMove)) {
+            return false;
+        }
+        return ChessBot.dom.isLiveGameContext();
+    }
+
+    function clearMoveClassificationIcon() {
+        if (ChessBot.ui && ChessBot.ui.moveClassificationOverlay && typeof ChessBot.ui.moveClassificationOverlay.clear === 'function') {
+            ChessBot.ui.moveClassificationOverlay.clear();
+        }
+    }
+
+    function resetMoveClassificationState(resetLastFen = false) {
+        classification.enabled = false;
+        classification.inFlight = false;
+        classification.requestSeq += 1;
+        classification.lastMoveKey = null;
+        classification.precomputeLastKey = null;
+        classification.precomputeLastAt = 0;
+        if (resetLastFen) {
+            classification.lastFen = null;
+        }
+        clearMoveClassificationIcon();
+        if (ChessBot.classifier && typeof ChessBot.classifier.reset === 'function') {
+            ChessBot.classifier.reset();
+        }
+    }
+
+    function precomputeBestSnapshotForCurrentFen(currentFen) {
+        if (!currentFen) {
+            return;
+        }
+        if (!ChessBot.classifier || typeof ChessBot.classifier.precomputeBest !== 'function') {
+            return;
+        }
+        if (runtime.isThinking || classification.inFlight) {
+            return;
+        }
+
+        const depthCap = Math.max(1, Math.min(14, Math.floor(runtime.lastValue) || config.DEFAULT_DEPTH));
+        const precomputeKey = `${currentFen}::${depthCap}`;
+        const now = Date.now();
+
+        if (classification.precomputeLastKey === precomputeKey
+            && (now - classification.precomputeLastAt) < PRECOMPUTE_MIN_INTERVAL_MS) {
+            ChessBot.logger.debug('Move classification precompute skipped', {
+                reason: 'debounced',
+                key: precomputeKey
+            });
+            return;
+        }
+
+        classification.precomputeLastKey = precomputeKey;
+        classification.precomputeLastAt = now;
+        ChessBot.classifier.precomputeBest({
+            fen: currentFen,
+            depthCap
+        });
+    }
+
+    function handleMoveClassificationTick(currentFen) {
+        const classificationAllowed = shouldRunMoveClassification();
+        if (!classificationAllowed) {
+            if (classification.enabled || classification.activeIcon || classification.inFlight) {
+                resetMoveClassificationState(false);
+            } else if (!currentFen) {
+                classification.lastFen = null;
+            }
+            if (currentFen) {
+                classification.lastFen = currentFen;
+            }
+            return;
+        }
+
+        const wasEnabled = classification.enabled;
+        classification.enabled = true;
+        if (!wasEnabled && ChessBot.classifier && typeof ChessBot.classifier.prepare === 'function') {
+            ChessBot.classifier.prepare();
+        }
+
+        if (!currentFen) {
+            return;
+        }
+
+        if (!classification.lastFen) {
+            classification.lastFen = currentFen;
+            precomputeBestSnapshotForCurrentFen(currentFen);
+            return;
+        }
+
+        if (classification.lastFen === currentFen) {
+            precomputeBestSnapshotForCurrentFen(currentFen);
+            return;
+        }
+
+        const previousFen = classification.lastFen;
+        classification.lastFen = currentFen;
+        classification.precomputeLastKey = null;
+        classification.precomputeLastAt = 0;
+
+        clearMoveClassificationIcon();
+        if (currentFen === config.STARTING_FEN) {
+            return;
+        }
+
+        const inferredMove = ChessBot.dom.inferPlayedMoveFromFenTransition(previousFen, currentFen);
+        if (!inferredMove || !inferredMove.uci || !inferredMove.toSquare) {
+            return;
+        }
+
+        const nextMoveKey = `${inferredMove.uci}@${currentFen}`;
+        if (classification.lastMoveKey === nextMoveKey) {
+            return;
+        }
+        classification.lastMoveKey = nextMoveKey;
+
+        const requestSeq = classification.requestSeq + 1;
+        classification.requestSeq = requestSeq;
+        classification.inFlight = true;
+        if (!ChessBot.classifier || typeof ChessBot.classifier.classifyMove !== 'function') {
+            classification.inFlight = false;
+            return;
+        }
+
+        const depthCap = Math.max(1, Math.min(14, Math.floor(runtime.lastValue) || config.DEFAULT_DEPTH));
+        ChessBot.classifier.classifyMove({
+            fenBefore: previousFen,
+            playedUci: inferredMove.uci,
+            depthCap
+        }).then(result => {
+            if (classification.requestSeq !== requestSeq) {
+                return;
+            }
+            if (!shouldRunMoveClassification()) {
+                return;
+            }
+            if (!result || !result.label) {
+                return;
+            }
+            if (ChessBot.ui && ChessBot.ui.moveClassificationOverlay && typeof ChessBot.ui.moveClassificationOverlay.show === 'function') {
+                ChessBot.ui.moveClassificationOverlay.show({
+                    toSquare: inferredMove.toSquare,
+                    label: result.label
+                });
+            }
+        }).catch(error => {
+            if (error && error.code === 'CLASSIFIER_CANCELLED') {
+                return;
+            }
+            ChessBot.logger.debug('Move classification failed', error);
+        }).finally(() => {
+            if (classification.requestSeq === requestSeq) {
+                classification.inFlight = false;
+            }
+        });
     }
 
     function pickGameOverNewGameButton(buttons) {
@@ -252,7 +451,13 @@
 
                 const clocks = ChessBot.dom.getClockSnapshot();
                 const currentFen = ChessBot.dom.resolveCurrentFen();
+                if (shouldPauseForGameOver(currentFen)) {
+                    await delay(0.1, 0.2);
+                    continue;
+                }
+
                 const playingAs = resolvePlayingAsFromBoard(clocks);
+                handleMoveClassificationTick(currentFen);
 
                 runtime.myTurn = ChessBot.timing.resolveIsMyTurn(playingAs, clocks);
                 ChessBot.timing.updateTempoStats(Boolean(runtime.myTurn));

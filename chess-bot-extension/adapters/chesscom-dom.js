@@ -20,8 +20,18 @@
             '[data-cy="game-over-modal"] button',
             '[data-testid="game-over-modal"] button'
         ],
+        gameOverModal: [
+            '.board-modal-component.game-over-modal-container',
+            '.game-over-modal-container',
+            '[data-cy="game-over-modal"]'
+        ],
+        gameOverNewGameButton: [
+            'button[data-cy="game-over-modal-new-game-button"]',
+            'button[data-testid="game-over-modal-new-game-button"]'
+        ],
         controlPanelRoot: ['#sf-control-root']
     };
+    const FILE_CHARS = 'abcdefgh';
 
     function queryFirst(selectorList, root = document) {
         for (const selector of selectorList) {
@@ -194,6 +204,375 @@
         return queryFirst(selectors.controlPanelRoot);
     }
 
+    function isElementVisible(node) {
+        if (!node || !node.isConnected) {
+            return false;
+        }
+
+        const style = window.getComputedStyle(node);
+        if (!style || style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity || '1') === 0) {
+            return false;
+        }
+
+        const rect = node.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    }
+
+    function isGameOverModalVisible() {
+        const modal = queryFirst(selectors.gameOverModal);
+        if (isElementVisible(modal)) {
+            return true;
+        }
+
+        const newGameButton = queryFirst(selectors.gameOverNewGameButton);
+        if (isElementVisible(newGameButton)) {
+            return true;
+        }
+
+        const buttons = getGameOverButtons();
+        for (const button of buttons) {
+            if (!isElementVisible(button)) {
+                continue;
+            }
+            const container = button.closest('.game-over-modal-container, .board-modal-component');
+            if (!container || isElementVisible(container)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function isLiveGameContext() {
+        const path = (window.location && window.location.pathname ? window.location.pathname : '').toLowerCase();
+        if (!path) {
+            return false;
+        }
+        if (path.includes('/puzzles') || path.includes('/analysis') || path.includes('/review')) {
+            return false;
+        }
+
+        // Live/play surfaces on chess.com include both human games and computer games.
+        if (path.startsWith('/play/') || path.startsWith('/game/')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function iterateSquares(callback) {
+        for (let rank = 1; rank <= 8; rank++) {
+            for (let fileIndex = 0; fileIndex < 8; fileIndex++) {
+                callback(`${FILE_CHARS[fileIndex]}${rank}`);
+            }
+        }
+    }
+
+    function parseSquare(square) {
+        if (typeof square !== 'string' || !/^[a-h][1-8]$/.test(square)) {
+            return null;
+        }
+        return {
+            file: square.charCodeAt(0) - 96,
+            rank: parseInt(square.charAt(1), 10)
+        };
+    }
+
+    function pieceType(piece) {
+        return typeof piece === 'string' && piece.length > 0 ? piece.toLowerCase() : '';
+    }
+
+    function isSameColor(piece, sideToken) {
+        if (typeof piece !== 'string' || piece.length === 0) {
+            return false;
+        }
+        return sideToken === 'w' ? piece === piece.toUpperCase() : piece === piece.toLowerCase();
+    }
+
+    function parseFenBoard(fen) {
+        if (typeof fen !== 'string' || fen.trim().length === 0) {
+            return null;
+        }
+
+        const parts = fen.trim().split(/\s+/);
+        if (parts.length < 4) {
+            return null;
+        }
+
+        const placement = parts[0];
+        const sideToMove = parts[1] === 'b' ? 'b' : 'w';
+        const castling = parts[2] || '-';
+        const enPassant = parts[3] && parts[3] !== '-' ? parts[3] : null;
+        const board = {};
+        const ranks = placement.split('/');
+
+        if (ranks.length !== 8) {
+            return null;
+        }
+
+        for (let rankIndex = 0; rankIndex < 8; rankIndex++) {
+            const row = ranks[rankIndex];
+            let fileIndex = 0;
+            const rank = 8 - rankIndex;
+
+            for (let i = 0; i < row.length; i++) {
+                const token = row.charAt(i);
+                if (/\d/.test(token)) {
+                    fileIndex += parseInt(token, 10);
+                    continue;
+                }
+                if (!/[prnbqkPRNBQK]/.test(token) || fileIndex > 7) {
+                    return null;
+                }
+
+                const square = `${FILE_CHARS[fileIndex]}${rank}`;
+                board[square] = token;
+                fileIndex += 1;
+            }
+
+            if (fileIndex !== 8) {
+                return null;
+            }
+        }
+
+        return {
+            board,
+            sideToMove,
+            castling,
+            enPassant
+        };
+    }
+
+    function inferCastlingMove(previousState, nextState, sideToken) {
+        if (!previousState || !nextState) {
+            return null;
+        }
+
+        const prev = previousState.board;
+        const next = nextState.board;
+
+        if (sideToken === 'w') {
+            if (prev.e1 === 'K' && prev.h1 === 'R' && next.g1 === 'K' && next.f1 === 'R') {
+                return { uci: 'e1g1', toSquare: 'g1', sideMoved: 'white' };
+            }
+            if (prev.e1 === 'K' && prev.a1 === 'R' && next.c1 === 'K' && next.d1 === 'R') {
+                return { uci: 'e1c1', toSquare: 'c1', sideMoved: 'white' };
+            }
+            return null;
+        }
+
+        if (prev.e8 === 'k' && prev.h8 === 'r' && next.g8 === 'k' && next.f8 === 'r') {
+            return { uci: 'e8g8', toSquare: 'g8', sideMoved: 'black' };
+        }
+        if (prev.e8 === 'k' && prev.a8 === 'r' && next.c8 === 'k' && next.d8 === 'r') {
+            return { uci: 'e8c8', toSquare: 'c8', sideMoved: 'black' };
+        }
+        return null;
+    }
+
+    function isPathClear(boardMap, fromCoords, toCoords, stepFile, stepRank) {
+        let file = fromCoords.file + stepFile;
+        let rank = fromCoords.rank + stepRank;
+
+        while (file !== toCoords.file || rank !== toCoords.rank) {
+            const square = `${FILE_CHARS[file - 1]}${rank}`;
+            if (boardMap[square]) {
+                return false;
+            }
+            file += stepFile;
+            rank += stepRank;
+        }
+
+        return true;
+    }
+
+    function canPieceReach(previousState, fromSquare, toSquare, sideToken) {
+        if (!previousState || !fromSquare || !toSquare || fromSquare === toSquare) {
+            return false;
+        }
+
+        const boardMap = previousState.board;
+        const piece = boardMap[fromSquare];
+        if (!piece || !isSameColor(piece, sideToken)) {
+            return false;
+        }
+
+        const fromCoords = parseSquare(fromSquare);
+        const toCoords = parseSquare(toSquare);
+        if (!fromCoords || !toCoords) {
+            return false;
+        }
+
+        const destinationPiece = boardMap[toSquare] || null;
+        if (destinationPiece && isSameColor(destinationPiece, sideToken)) {
+            return false;
+        }
+
+        const fileDiff = toCoords.file - fromCoords.file;
+        const rankDiff = toCoords.rank - fromCoords.rank;
+        const absFileDiff = Math.abs(fileDiff);
+        const absRankDiff = Math.abs(rankDiff);
+        const type = pieceType(piece);
+
+        if (type === 'n') {
+            return (absFileDiff === 1 && absRankDiff === 2) || (absFileDiff === 2 && absRankDiff === 1);
+        }
+
+        if (type === 'k') {
+            return absFileDiff <= 1 && absRankDiff <= 1;
+        }
+
+        if (type === 'b') {
+            if (absFileDiff !== absRankDiff || absFileDiff === 0) {
+                return false;
+            }
+            return isPathClear(boardMap, fromCoords, toCoords, Math.sign(fileDiff), Math.sign(rankDiff));
+        }
+
+        if (type === 'r') {
+            if (fileDiff !== 0 && rankDiff !== 0) {
+                return false;
+            }
+            const stepFile = fileDiff === 0 ? 0 : Math.sign(fileDiff);
+            const stepRank = rankDiff === 0 ? 0 : Math.sign(rankDiff);
+            return isPathClear(boardMap, fromCoords, toCoords, stepFile, stepRank);
+        }
+
+        if (type === 'q') {
+            const isStraight = fileDiff === 0 || rankDiff === 0;
+            const isDiagonal = absFileDiff === absRankDiff && absFileDiff > 0;
+            if (!isStraight && !isDiagonal) {
+                return false;
+            }
+            const stepFile = fileDiff === 0 ? 0 : Math.sign(fileDiff);
+            const stepRank = rankDiff === 0 ? 0 : Math.sign(rankDiff);
+            return isPathClear(boardMap, fromCoords, toCoords, stepFile, stepRank);
+        }
+
+        if (type !== 'p') {
+            return false;
+        }
+
+        const direction = sideToken === 'w' ? 1 : -1;
+        const startRank = sideToken === 'w' ? 2 : 7;
+        const targetPiece = boardMap[toSquare] || null;
+
+        if (fileDiff === 0) {
+            if (rankDiff === direction && !targetPiece) {
+                return true;
+            }
+            if (rankDiff === 2 * direction && fromCoords.rank === startRank && !targetPiece) {
+                const intermediateSquare = `${FILE_CHARS[fromCoords.file - 1]}${fromCoords.rank + direction}`;
+                return !boardMap[intermediateSquare];
+            }
+            return false;
+        }
+
+        if (absFileDiff !== 1 || rankDiff !== direction) {
+            return false;
+        }
+
+        if (targetPiece && !isSameColor(targetPiece, sideToken)) {
+            return true;
+        }
+
+        return !!(previousState.enPassant && previousState.enPassant === toSquare);
+    }
+
+    function inferPlayedMoveFromFenTransition(prevFen, nextFen) {
+        const previousState = parseFenBoard(prevFen);
+        const nextState = parseFenBoard(nextFen);
+        if (!previousState || !nextState) {
+            return null;
+        }
+
+        const sideToken = previousState.sideToMove === 'b' ? 'b' : 'w';
+        const sideMoved = sideToken === 'w' ? 'white' : 'black';
+
+        const castlingMove = inferCastlingMove(previousState, nextState, sideToken);
+        if (castlingMove) {
+            return castlingMove;
+        }
+
+        const changedSquares = [];
+        iterateSquares(square => {
+            const prevPiece = previousState.board[square] || null;
+            const nextPiece = nextState.board[square] || null;
+            if (prevPiece !== nextPiece) {
+                changedSquares.push(square);
+            }
+        });
+
+        if (changedSquares.length === 0) {
+            return null;
+        }
+
+        const fromCandidates = [];
+        const toCandidates = [];
+
+        changedSquares.forEach(square => {
+            const prevPiece = previousState.board[square] || null;
+            const nextPiece = nextState.board[square] || null;
+
+            if (prevPiece && isSameColor(prevPiece, sideToken) && (!nextPiece || !isSameColor(nextPiece, sideToken))) {
+                fromCandidates.push(square);
+            }
+            if (nextPiece && isSameColor(nextPiece, sideToken) && (!prevPiece || !isSameColor(prevPiece, sideToken))) {
+                toCandidates.push(square);
+            }
+        });
+
+        if (fromCandidates.length === 0 || toCandidates.length === 0) {
+            return null;
+        }
+
+        let fromSquare = null;
+        let toSquare = null;
+
+        if (fromCandidates.length === 1 && toCandidates.length === 1) {
+            fromSquare = fromCandidates[0];
+            toSquare = toCandidates[0];
+        } else {
+            const viablePairs = [];
+            fromCandidates.forEach(from => {
+                toCandidates.forEach(to => {
+                    if (canPieceReach(previousState, from, to, sideToken)) {
+                        viablePairs.push({ from, to });
+                    }
+                });
+            });
+
+            if (viablePairs.length !== 1) {
+                return null;
+            }
+
+            fromSquare = viablePairs[0].from;
+            toSquare = viablePairs[0].to;
+        }
+
+        const movedPiece = previousState.board[fromSquare];
+        if (!movedPiece || !isSameColor(movedPiece, sideToken)) {
+            return null;
+        }
+
+        let promotionSuffix = '';
+        if (pieceType(movedPiece) === 'p') {
+            const promotionRank = sideToken === 'w' ? '8' : '1';
+            if (toSquare.charAt(1) === promotionRank) {
+                const promotedPiece = nextState.board[toSquare] || null;
+                const promotedType = pieceType(promotedPiece);
+                if (promotedPiece && isSameColor(promotedPiece, sideToken) && /[qrbn]/.test(promotedType) && promotedType !== 'p') {
+                    promotionSuffix = promotedType;
+                }
+            }
+        }
+
+        return {
+            uci: `${fromSquare}${toSquare}${promotionSuffix}`,
+            toSquare,
+            sideMoved
+        };
+    }
+
     function getDomDetectionSnapshot() {
         return {
             board: !!getBoardElement(),
@@ -211,12 +590,16 @@
         queryFirst,
         queryAll,
         getBoardElement,
+        isLiveGameContext,
         resolveCurrentFen,
         getClockSnapshot,
         getMoveNumberEstimate,
         getCapturedMaterialStats,
         getGameOverButtons,
+        isGameOverModalVisible,
         getControlPanelRoot,
+        parseFenBoard,
+        inferPlayedMoveFromFenTransition,
         getDomDetectionSnapshot
     };
 })();

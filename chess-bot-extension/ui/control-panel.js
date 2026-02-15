@@ -52,7 +52,7 @@
     </div>
     <div class="sf-row sf-row--field">
         <label for="timeDelayMin">Auto Run Delay Minimum (Seconds)</label>
-        <input type="number" id="timeDelayMin" name="timeDelayMin" min="0.1" value="0.1">
+        <input type="number" id="timeDelayMin" name="timeDelayMin" min="0.1" value="0.6">
     </div>
     <div class="sf-row sf-row--field">
         <label for="timeDelayMax">Auto Run Delay Maximum (Seconds)</label>
@@ -176,7 +176,7 @@
         const minDelayInput = parseFloat(getPanelInput('timeDelayMin')?.value);
         const maxDelayInput = parseFloat(getPanelInput('timeDelayMax')?.value);
 
-        const minDelayVal = Number.isFinite(minDelayInput) ? Math.max(0.1, minDelayInput) : 0.1;
+        const minDelayVal = Number.isFinite(minDelayInput) ? Math.max(0.1, minDelayInput) : 0.6;
         const maxDelayVal = Number.isFinite(maxDelayInput) ? Math.max(minDelayVal, maxDelayInput) : Math.max(minDelayVal, 1);
 
         return {

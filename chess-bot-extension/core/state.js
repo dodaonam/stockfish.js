@@ -65,6 +65,8 @@
         stockfishObjectURL: null,
         isInActiveGame: false,
         confirmedPlayerColor: null,
+        gameOverLockedFen: null,
+        gameOverModalSeen: false,
         loaded: false,
         lastValue: config.DEFAULT_DEPTH
     };
@@ -99,6 +101,23 @@
     };
 
     const engine = document.engine = document.engine || {};
+    const classifierRuntime = {
+        worker: null,
+        pending: null,
+        inFlightJobId: 0,
+        requestId: 0
+    };
+
+    const classification = {
+        enabled: false,
+        lastFen: null,
+        requestSeq: 0,
+        activeIcon: null,
+        inFlight: false,
+        lastMoveKey: null,
+        precomputeLastKey: null,
+        precomputeLastAt: 0
+    };
 
     const myVars = document.myVars = {
         autoRun: false,
@@ -124,6 +143,8 @@
         tempoStats,
         searchContext,
         engine,
+        classifierRuntime,
+        classification,
         myVars,
         myFunctions,
         ROOT_WINDOW: window
