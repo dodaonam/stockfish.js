@@ -173,4 +173,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-tools/obfuscate_dist.ps1
+171_single_nnue/
