@@ -1,89 +1,119 @@
-# Chess.com Bot - Stockfish 17.1
+# Chess Bot - Stockfish & LC0
 
-Bot cờ vua tự động cho Chess.com sử dụng engine Stockfish 17.1 với NNUE.
+Repository này chứa ba cách sử dụng bot trên Chess.com:
 
-## Tính năng chính
+- **Stockfish Chrome Extension**: extension chính với evaluation bar, gợi ý nước đi, phân loại nước đi và auto-move.
+- **LC0 Chrome Extension**: extension riêng dùng engine LC0 chạy qua local bridge.
+- **Stockfish userscript legacy**: userscript Tampermonkey cũ, giữ lại để tương thích và tham khảo.
 
-### 🎯 Phân tích nước đi
-- Tự động tìm nước đi tốt nhất với engine Stockfish 17.1
-- Điều chỉnh độ sâu phân tích (depth)
-- Hiển thị evaluation bar (thanh đánh giá) trực quan ngay trong ván cờ
+## Stockfish Chrome Extension
 
-### 🤖 Chế độ tự động
-- **Auto-run**: Tự động phân tích và tìm nước đi tốt nhất
-- **Auto-move**: Tự động phân tích, tìm nước đi tốt nhất và thực hiện nước đi
-- **Auto new game**: Tự động bắt đầu ván mới
-- **Random delay**: Thêm độ trễ ngẫu nhiên để giống người chơi thật
+![Full Board UI](assets/image.png)
 
-### 📊 Giao diện
-- Nút điều khiển ở góc dưới phải
-- Panel cài đặt gọn gàng, dễ sử dụng
-- Evaluation bar hiển thị trực quan tình thế
+Chess Bot là extension hỗ trợ phân tích và gợi ý nước đi trên chess.com bằng Stockfish. Mục tiêu là giúp bạn học nhanh hơn, hiểu thế trận rõ hơn và luyện tập hiệu quả với giao diện trực quan.
 
-## Cài đặt
+**Phù hợp cho**
 
-### 1. Cài Tampermonkey
+- Người muốn luyện tập và phân tích ván cờ của mình.
+- Người mới chơi cần gợi ý nước đi để học nguyên tắc cơ bản.
+- Người chơi trung cấp muốn theo dõi đánh giá thế trận (eval bar).
 
-### 2. Cài script
-1. Mở Tampermonkey
-2. Creat a new script
-3. Paste nội dung script `chess_bot.js`
-4. Lưu script
+**Tính năng**
 
-### 3. Truy cập Chess.com
-- Vào [chess.com/play/computer](https://www.chess.com/play/computer) và sử dụng
+- Gợi ý nước đi tốt nhất.
 
-## Hướng dẫn sử dụng
+![Auto Run](assets/suggestion.png)
 
-### Mở bảng điều khiển
-- Click vào **nút tròn** ở góc dưới phải màn hình
-- Giao diện sẽ hiện ra
+- Thanh đánh giá thế trận dễ hiểu.
 
-### Điều chỉnh độ sâu phân tích
-- Nhấn phím từ `Q-M` trên bàn phím
-- Depth càng cao = phân tích càng mạnh nhưng chậm hơn
+![Eval Bar](assets/eval_bar.gif)
 
-### Bật/tắt Auto-run
-1. Mở panel điều khiển
-2. Tích chọn **"Auto-run"**
-3. Tự động tìm nước tốt nhất
+- Tự đi theo gợi ý.
 
-### Bật/tắt Auto-move
-1. Mở panel điều khiển
-2. Tích chọn **"Auto-move"**
-3. Tự động đi nước tốt nhất
+![Auto Move](assets/auto_move.gif)
 
-### Bật/tắt Auto new game
-1. Mở panel điều khiển
-2. Tích chọn **"Auto New Game"**
-3. Sau khi ván đấu kết thúc, bot sẽ tự động bắt đầu ván mới
+- Tùy chỉnh độ trễ để tự nhiên hơn.
+- Tự bắt đầu ván mới khi kết thúc (Auto New Game).
+- Phân loại nước đi và hiển thị thông tin phân tích.
 
-### Random delay
-1. Mở panel điều khiển
-1. Nhập thời gian (giây)
-2. Bot sẽ thêm độ trễ ngẫu nhiên giữa các nước đi
+### Cài đặt
 
-### Đọc evaluation bar
-- **Thanh trắng/đen**: Thể hiện ưu thế của mỗi bên
-- **Số dương (+)**: Quân trắng đang ưu thế
-- **Số âm (-)**: Quân đen đang ưu thế
-- **M_X số**: Mate trong X nước
-- **D_Y số**: Độ sâu Y hiện tại
+1. Mở Chrome và vào `chrome://extensions`.
+2. Bật `Developer mode`.
+3. Chọn `Load unpacked` và trỏ tới thư mục `chess-bot-extension`.
 
-## Phím tắt
+### Cách sử dụng
 
-| Phím | Chức năng |
-|------|-----------|
-| `Q-M` | Đặt depth = 1-26 |
-| Click nút tròn | Mở/đóng panel |
+1. Vào `chess.com` và mở một ván chơi hoặc puzzle.
+2. Bấm icon extension để bật/tắt toàn bộ.
+3. Trên bàn cờ sẽ xuất hiện nút tròn. Bấm để mở bảng điều khiển.
+4. Chọn các tùy chọn theo nhu cầu (Auto Run, Eval bar only, Auto Move…).
+
+### Phím tắt độ sâu phân tích
+
+- Phím tắt điều chỉnh depth là các phím trên bàn phím từ `Q` đến `M`, tương đương độ sâu từ 1 - 26.
+
+## Stockfish userscript legacy
+
+Userscript cũ nằm trong `chess_bot.js` và chạy bằng Tampermonkey. Engine Stockfish được lưu trong:
+
+```text
+stockfish_engine/171_single_nnue/
+```
+
+### Cài đặt
+
+1. Cài Tampermonkey.
+2. Tạo một userscript mới.
+3. Dán nội dung của `chess_bot.js` vào userscript.
+4. Lưu lại rồi truy cập [chess.com/play/computer](https://www.chess.com/play/computer).
+
+### Tính năng
+
+- Tự động tìm nước đi tốt nhất bằng Stockfish 17.1.
+- Điều chỉnh độ sâu phân tích.
+- Evaluation bar.
+- Auto-run và auto-move.
+- Auto new game.
+- Random delay.
+
+### Điều khiển
+
+- Nhấn phím từ `Q-M` để đặt depth từ 1 - 26.
+- Bấm nút tròn ở góc dưới phải để mở hoặc đóng panel.
+
+## LC0 Chrome Extension
+
+LC0 extension nằm trong `lc0-bot-extension/`. Phần extension giao tiếp với một local FastAPI bridge, sau đó bridge điều khiển binary `lc0` qua UCI.
+
+### Chuẩn bị và chạy local bridge
+
+Yêu cầu Python 3.11 trở lên và `uv`:
+
+```bash
+pip install uv
+cd lc0-bot-extension/bridge
+uv sync
+uv run uvicorn app.main:app --host 127.0.0.1 --port 3187 --workers 1
+```
+
+Trước khi chạy, kiểm tra `lc0-bot-extension/bridge/lc0.config` và đặt đường dẫn weights phù hợp với máy của bạn. Có thể dùng file `.env` dựa trên `.env.example` để cấu hình đường dẫn binary, port và thời gian tìm kiếm.
+
+### Cài đặt LC0 extension
+
+1. Mở Chrome và vào `chrome://extensions`.
+2. Bật `Developer mode`.
+3. Chọn `Load unpacked`.
+4. Trỏ tới thư mục `lc0-bot-extension/extension`.
+5. Đảm bảo local bridge đang chạy ở `http://127.0.0.1:3187`.
+
+LC0 hỗ trợ các chế độ tìm kiếm `classic`, `policyhead` và `valuehead`. Các thiết lập thời gian tìm kiếm, random delay, Auto Run và Auto Move được điều chỉnh trong panel của extension.
 
 ## Lưu ý
 
-⚠️ **Chú ý quan trọng**:
-- Sử dụng bot có thể vi phạm điều khoản của Chess.com
-- Chỉ dùng cho mục đích học tập và nghiên cứu
-- Tác giả không chịu trách nhiệm về việc tài khoản bị khóa
+- Hãy tuân thủ quy định Fair Play của Chess.com.
+- Chỉ sử dụng cho mục đích học tập, phân tích và luyện tập cá nhân.
+- Tránh sử dụng trong các ván xếp hạng hoặc giải đấu trực tuyến.
+- Tác giả không chịu trách nhiệm về việc tài khoản bị hạn chế hoặc khóa.
 
----
-
-*Script được phát triển cho mục đích giáo dục. Sử dụng có trách nhiệm.*
+Sử dụng bot có trách nhiệm.

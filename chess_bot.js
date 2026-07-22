@@ -22,7 +22,7 @@
 const ROOT_WINDOW = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
 
 const currentVersion = '1.8.3.6-single'; // Sets the current version
-const STOCKFISH_BASE_URL = 'https://cdn.jsdelivr.net/gh/dodaonam/stockfish.js@main/171_single_nnue/';
+const STOCKFISH_BASE_URL = 'https://cdn.jsdelivr.net/gh/dodaonam/stockfish.js@main/stockfish_engine/171_single_nnue/';
 const STOCKFISH_MAIN_SCRIPT = 'stockfish-17.1-single-a496a04.js';
 const STOCKFISH_WASM_URL = `${STOCKFISH_BASE_URL}stockfish-17.1-single-a496a04.wasm`;
 const STOCKFISH_BOOTSTRAP_PATTERN = 'a=decodeURIComponent(e[0]||location.origin+location.pathname.replace(/\\.js$/i,".wasm"))';

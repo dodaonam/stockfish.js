@@ -1,0 +1,16 @@
+.DS_Store
+
+# Python local environment
+bridge/.env
+bridge/.venv/
+bridge/venv/
+bridge/__pycache__/
+bridge/**/__pycache__/
+bridge/.pytest_cache/
+bridge/*.egg-info/
+
+# Generated bridge config variants
+bridge/.lc0.*.generated.config
+
+# Editor and runtime noise
+*.log
