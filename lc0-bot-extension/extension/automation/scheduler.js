@@ -11,24 +11,16 @@
   function randomBetween(min, max) {
     const low = Number.isFinite(min) ? min : config.DEFAULT_RANDOM_DELAY_MIN_SEC;
     const high = Number.isFinite(max) ? max : config.DEFAULT_RANDOM_DELAY_MAX_SEC;
-    const safeMin = Math.min(low, high);
-    const safeMax = Math.max(low, high);
-    return Math.random() * (safeMax - safeMin) + safeMin;
+    return Math.random() * (Math.max(low, high) - Math.min(low, high)) + Math.min(low, high);
   }
 
   function normalizeMovetimeSec(value) {
     const numeric = Number(value);
-    if (!Number.isFinite(numeric)) {
-      return config.DEFAULT_MOVETIME_SEC;
-    }
-    return Math.round(numeric * 1000) / 1000;
+    return Number.isFinite(numeric) ? Math.round(numeric * 1000) / 1000 : config.DEFAULT_MOVETIME_SEC;
   }
 
   function buildAnalysisKey(fen) {
-    if (!fen) {
-      return "";
-    }
-    return `${fen}|${settings.searchMode}|${normalizeMovetimeSec(settings.goMovetimeSec)}`;
+    return fen ? `${fen}|${normalizeMovetimeSec(settings.goMovetimeSec)}` : "";
   }
 
   function clearPending(resetLastRequested = false) {
@@ -48,111 +40,77 @@
 
   function setChessBotEnabled(enabled) {
     runtime.extensionEnabled = enabled !== false;
-
-    const root = ChessBot.dom.getControlPanelRoot();
+    const root = document.getElementById("lc0-control-root");
     if (root) {
       root.style.display = runtime.extensionEnabled ? "" : "none";
     }
-
     if (!runtime.extensionEnabled) {
       clearPending(false);
-      ChessBot.dom.clearHighlights();
+      ChessBot.bridge.clearHighlights().catch(() => {});
     } else {
       runtime.lastRequestedFen = null;
       runtime.lastRequestedAnalysisKey = null;
     }
   }
 
-  function shouldRequestAnalysis(fen) {
-    if (!runtime.extensionEnabled) {
+  function canRequestAnalysis(pageState) {
+    if (!runtime.extensionEnabled || !settings.autoRun || runtime.inFlightRequestId) {
       return false;
     }
-    if (!settings.autoRun) {
+    if (!pageState.isLiveGame || !pageState.isMyTurn || !pageState.fen) {
       return false;
     }
-    if (!ChessBot.dom.isLiveGameContext()) {
-      return false;
-    }
-    if (!fen) {
-      return false;
-    }
-    if (!ChessBot.dom.isMyTurn()) {
-      return false;
-    }
-    if (runtime.inFlightRequestId) {
-      return false;
-    }
-    const analysisKey = buildAnalysisKey(fen);
-    if (!analysisKey) {
-      return false;
-    }
-    return analysisKey !== runtime.lastRequestedAnalysisKey;
+    const analysisKey = buildAnalysisKey(pageState.fen);
+    return !!analysisKey && analysisKey !== runtime.lastRequestedAnalysisKey;
   }
 
   async function requestBestMoveForFen(fen, analysisKey) {
-    const key = analysisKey || buildAnalysisKey(fen);
     const requestId = ChessBot.bridge.makeRequestId("bestmove");
     runtime.inFlightRequestId = requestId;
     runtime.inFlightFen = fen;
-    runtime.inFlightAnalysisKey = key;
+    runtime.inFlightAnalysisKey = analysisKey;
     runtime.lastRequestedFen = fen;
-    runtime.lastRequestedAnalysisKey = key;
+    runtime.lastRequestedAnalysisKey = analysisKey;
     runtime.isThinking = true;
 
     try {
       const response = await ChessBot.bridge.requestBestMove({
         requestId,
         fen,
-        movetimeSec: settings.goMovetimeSec,
-        searchMode: settings.searchMode,
-        timeoutMs: config.REQUEST_TIMEOUT_MS
+        movetimeSec: settings.goMovetimeSec
       });
-
-      if (runtime.inFlightRequestId !== requestId) {
+      if (runtime.inFlightRequestId !== requestId || !response?.ok) {
+        if (!response?.ok) ChessBot.logger.warn("Bestmove request failed", response?.error);
         return;
       }
-
-      if (!response || !response.ok) {
-        ChessBot.logger.warn("Bestmove request failed", response && response.error ? response.error : response);
-        return;
-      }
-
-      const bestmove = response.result && typeof response.result.bestmove === "string"
-        ? response.result.bestmove.toLowerCase()
-        : "";
-
+      const bestmove = typeof response.result?.bestmove === "string" ? response.result.bestmove.toLowerCase() : "";
       if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestmove)) {
         ChessBot.logger.warn("Ignoring invalid bestmove", bestmove);
         return;
       }
 
-      const currentFen = ChessBot.dom.resolveCurrentFen();
-      if (currentFen !== fen) {
-        ChessBot.logger.debug("Dropping stale bestmove result", { requestId, fenAtRequest: fen, currentFen });
+      const current = await ChessBot.bridge.getPageState();
+      if (current.fen !== fen) {
+        ChessBot.logger.debug("Dropping stale bestmove result", { requestId, fenAtRequest: fen, currentFen: current.fen });
         return;
       }
-
       if (settings.autoMove) {
-        const applied = ChessBot.dom.movePieceUci(bestmove);
-        if (!applied) {
-          ChessBot.logger.warn("Bestmove could not be applied", { bestmove });
-          ChessBot.dom.highlightMoveUci(bestmove);
-          runtime.highlightForFen = currentFen;
-        } else {
-          ChessBot.dom.clearHighlights();
+        const moveResult = await ChessBot.bridge.movePieceUci(bestmove);
+        if (moveResult.applied) {
+          await ChessBot.bridge.clearHighlights();
           runtime.highlightForFen = null;
+        } else {
+          await ChessBot.bridge.highlightMoveUci(bestmove);
+          runtime.highlightForFen = current.fen;
         }
       } else {
-        ChessBot.dom.highlightMoveUci(bestmove);
-        runtime.highlightForFen = currentFen;
+        await ChessBot.bridge.highlightMoveUci(bestmove);
+        runtime.highlightForFen = current.fen;
         ChessBot.logger.info("Best move", bestmove);
       }
-
-      runtime.lastAppliedFen = currentFen;
+      runtime.lastAppliedFen = current.fen;
     } catch (error) {
-      if (runtime.inFlightRequestId === requestId) {
-        ChessBot.logger.warn("Bestmove request threw", error);
-      }
+      if (runtime.inFlightRequestId === requestId) ChessBot.logger.warn("Bestmove request threw", error);
     } finally {
       if (runtime.inFlightRequestId === requestId) {
         runtime.inFlightRequestId = null;
@@ -170,76 +128,49 @@
           await sleep(300);
           continue;
         }
-
         if (!runtime.loaded) {
           ChessBot.ui.controlPanel.loadControlPanel();
           await sleep(150);
           continue;
         }
-
-        runtime.board = ChessBot.dom.getBoardElement() || runtime.board;
         ChessBot.ui.controlPanel.syncSettingsFromPanel();
-
-        const fen = ChessBot.dom.resolveCurrentFen();
+        const state = await ChessBot.bridge.getPageState();
+        const fen = state.fen;
         if (!fen) {
           clearPending(false);
-          ChessBot.dom.clearHighlights();
+          await ChessBot.bridge.clearHighlights();
           await sleep(config.LOOP_INTERVAL_MS);
           continue;
         }
-
         if (runtime.highlightForFen && fen !== runtime.highlightForFen) {
-          ChessBot.dom.clearHighlights();
+          await ChessBot.bridge.clearHighlights();
           runtime.highlightForFen = null;
         }
 
         if (runtime.pendingDueAt > 0) {
-          const desiredAnalysisKey = buildAnalysisKey(fen);
-          if (
-            settings.autoRun &&
-            ChessBot.dom.isMyTurn() &&
-            desiredAnalysisKey &&
-            (runtime.pendingFen !== fen || runtime.pendingAnalysisKey !== desiredAnalysisKey)
-          ) {
-            const rescheduleDelaySec = randomBetween(settings.randomDelayMinSec, settings.randomDelayMaxSec);
+          const desiredKey = buildAnalysisKey(fen);
+          if (settings.autoRun && state.isMyTurn && desiredKey && (runtime.pendingFen !== fen || runtime.pendingAnalysisKey !== desiredKey)) {
             runtime.pendingFen = fen;
-            runtime.pendingAnalysisKey = desiredAnalysisKey;
-            runtime.pendingDueAt = Date.now() + Math.round(rescheduleDelaySec * 1000);
+            runtime.pendingAnalysisKey = desiredKey;
+            runtime.pendingDueAt = Date.now() + Math.round(randomBetween(settings.randomDelayMinSec, settings.randomDelayMaxSec) * 1000);
           }
-
           if (Date.now() >= runtime.pendingDueAt) {
             const pendingFen = runtime.pendingFen;
-            const pendingAnalysisKey = runtime.pendingAnalysisKey;
-            runtime.pendingDueAt = 0;
-            runtime.pendingFen = null;
-            runtime.pendingAnalysisKey = null;
-
-            const currentFen = ChessBot.dom.resolveCurrentFen();
-            const currentAnalysisKey = buildAnalysisKey(currentFen);
-            if (
-              pendingFen &&
-              pendingAnalysisKey &&
-              currentFen === pendingFen &&
-              currentAnalysisKey === pendingAnalysisKey &&
-              settings.autoRun &&
-              ChessBot.dom.isMyTurn() &&
-              !runtime.inFlightRequestId
-            ) {
-              await requestBestMoveForFen(pendingFen, pendingAnalysisKey);
+            const pendingKey = runtime.pendingAnalysisKey;
+            clearPending(false);
+            const current = await ChessBot.bridge.getPageState();
+            if (pendingFen && pendingKey && current.fen === pendingFen && buildAnalysisKey(current.fen) === pendingKey && settings.autoRun && current.isMyTurn && !runtime.inFlightRequestId) {
+              await requestBestMoveForFen(pendingFen, pendingKey);
             }
           }
           await sleep(config.LOOP_INTERVAL_MS);
           continue;
         }
-
-        if (shouldRequestAnalysis(fen)) {
-          const delaySec = randomBetween(settings.randomDelayMinSec, settings.randomDelayMaxSec);
-          const analysisKey = buildAnalysisKey(fen);
+        if (canRequestAnalysis(state)) {
           runtime.pendingFen = fen;
-          runtime.pendingAnalysisKey = analysisKey;
-          runtime.pendingDueAt = Date.now() + Math.round(delaySec * 1000);
+          runtime.pendingAnalysisKey = buildAnalysisKey(fen);
+          runtime.pendingDueAt = Date.now() + Math.round(randomBetween(settings.randomDelayMinSec, settings.randomDelayMaxSec) * 1000);
         }
-
         await sleep(config.LOOP_INTERVAL_MS);
       } catch (error) {
         ChessBot.logger.error("Scheduler loop error", error);
@@ -249,25 +180,18 @@
   }
 
   function startWhenBoardReady() {
-    const waiter = setInterval(() => {
-      const board = ChessBot.dom.getBoardElement();
-      if (!board) {
-        return;
+    const waiter = setInterval(async () => {
+      try {
+        const state = await ChessBot.bridge.getPageState();
+        if (!state.boardAvailable) return;
+        clearInterval(waiter);
+        ChessBot.ui.controlPanel.loadControlPanel();
+        runSchedulerLoop();
+      } catch (_) {
+        // The Chess.com board may not be initialized yet.
       }
-
-      clearInterval(waiter);
-      runtime.board = board;
-      ChessBot.ui.controlPanel.loadControlPanel();
-      runSchedulerLoop();
     }, 500);
   }
 
-  function start() {
-    window.setChessBotEnabled = setChessBotEnabled;
-    startWhenBoardReady();
-  }
-
-  ChessBot.scheduler = {
-    start
-  };
+  ChessBot.scheduler = { start: () => startWhenBoardReady(), setChessBotEnabled };
 })();

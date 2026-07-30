@@ -9,7 +9,6 @@
     DEFAULT_MOVETIME_SEC: 0.5,
     DEFAULT_RANDOM_DELAY_MIN_SEC: 0.1,
     DEFAULT_RANDOM_DELAY_MAX_SEC: 0.6,
-    DEFAULT_SEARCH_MODE: "classic",
     MOVETIME_SEC_MIN: 0.01,
     MOVETIME_SEC_MAX: 10,
     RANDOM_DELAY_SEC_MIN: 0,
@@ -48,8 +47,7 @@
     autoMove: false,
     goMovetimeSec: config.DEFAULT_MOVETIME_SEC,
     randomDelayMinSec: config.DEFAULT_RANDOM_DELAY_MIN_SEC,
-    randomDelayMaxSec: config.DEFAULT_RANDOM_DELAY_MAX_SEC,
-    searchMode: config.DEFAULT_SEARCH_MODE
+    randomDelayMaxSec: config.DEFAULT_RANDOM_DELAY_MAX_SEC
   };
 
   ChessBot.state = {
