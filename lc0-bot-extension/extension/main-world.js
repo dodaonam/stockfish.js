@@ -19,8 +19,7 @@
     }
 
     try {
-      const ChessBot = window.ChessBot;
-      const dom = ChessBot && ChessBot.dom;
+      const dom = window.__LC0BotMain && window.__LC0BotMain.dom;
       if (!dom) {
         throw new Error("Chess.com page adapter is not ready");
       }

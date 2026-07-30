@@ -37,8 +37,6 @@
         "https://www.chess.com/puzzles/*"
       ],
       "js": [
-        "core/logger.js",
-        "core/state.js",
         "adapters/chesscom-dom.js",
         "main-world.js"
       ],

@@ -1,53 +1,70 @@
-# LC0 Bot for Windows
+# LC0 Bot cho Windows
 
-LC0 Bot is an unpacked Chrome extension for Chess.com. It talks to a local
-Windows CPU/oneDNN build of [Lc0](https://lczero.org/play/download/) through
-Chrome Native Messaging—there is no FastAPI server, localhost port, Python
-runtime, or manual Extension ID step for end users.
-
-It supports 64-bit Windows systems that can run x64 applications.
+LC0 Bot là Chrome extension Manifest V3 chạy ở chế độ **Load unpacked**. Nó
+phân tích thế cờ Chess.com bằng bản Lc0 Windows CPU/oneDNN cục bộ qua Chrome
+Native Messaging.
 
 ```text
-Chess.com page → extension → Native Messaging host → user-supplied lc0.exe
+Chess.com → extension → Native Messaging host → lc0.exe
 ```
 
-The host uses Lc0 `classic` search with the CPU package's `blas` backend.
-The engine process remains local to the current Windows user.
+## Yêu cầu
 
-## Use the extension
+- Google Chrome trên Windows 64-bit có thể chạy ứng dụng x64.
+- Repository này đã được clone về máy.
+- Bản **Windows CPU/oneDNN** của Lc0 do người dùng tự tải từ
+  [trang tải chính thức của Lc0](https://lczero.org/play/download/).
+- Thư mục Lc0 phải có:
+  - `lc0.exe`;
+  - `dnnl.dll`;
+  - đúng **một** file weight `*.pb.gz`, nằm ở thư mục Lc0 hoặc trong
+    `weights/`.
 
-1. Clone this repository.
-2. Download and extract the official **Windows CPU/oneDNN** Lc0 package. It
-   must contain `lc0.exe`, `dnnl.dll`, and exactly one `*.pb.gz` network,
-   either in that folder or its `weights` subfolder.
-3. From this repository's GitHub Release, download and double-click the only
-   asset: `LC0Bot-Setup-YYYY.MM.DD.exe`. Select the extracted Lc0 folder when
-   asked. Setup installs only the Native Messaging host under
-   `%LOCALAPPDATA%\LC0Bot` and registers it for the current user; it does not
-   copy, download, bundle, or modify Lc0 or its weights.
-4. In Chrome, open `chrome://extensions`, enable **Developer mode**, choose
-   **Load unpacked**, and select this repository's `lc0-bot-extension/extension`
-   folder.
-5. Open a supported Chess.com play, game, or puzzle page. The extension popup
-   reports whether the local host is ready; the green **LC0** button opens its
-   settings.
+LC0 Bot không tải, đóng gói, sao chép hoặc sửa đổi `lc0.exe`, DLL hay weight.
 
-## Change weights without Setup
+## Cài đặt cho người dùng
 
-Replace the old `*.pb.gz` file with the new weight in the configured Lc0
-folder (or its `weights` subfolder), leaving **exactly one** `*.pb.gz` file in
-those two locations. The filename may be anything. Reload the extension from
-`chrome://extensions`; the next native-host connection scans the folder again
-and uses the new file.
+1. Tải file Setup duy nhất từ GitHub Release:
+   `LC0Bot-Setup-YYYY.MM.DD.exe`.
+2. Chạy Setup và chọn thư mục Lc0 đã giải nén. Setup chỉ cài Native Messaging
+   host vào `%LOCALAPPDATA%\LC0Bot` và đăng ký nó cho Windows user hiện tại.
+3. Mở `chrome://extensions`, bật **Developer mode**, chọn **Load unpacked** và
+   chọn thư mục `lc0-bot-extension/extension/`.
+4. Mở popup của LC0 Bot. Thông báo `Local LC0 host is ready.` xác nhận config,
+   `lc0.exe`, `dnnl.dll` và weight hiện hợp lệ.
+5. Mở trang Chess.com thuộc `/play/`, `/game/` hoặc `/puzzles/`. Nút **LC0**
+   màu xanh mở bảng thiết lập Auto Run, Auto Move, thời gian tính nước và độ
+   trễ ngẫu nhiên.
 
-Run Setup again only if the Lc0 folder itself moves. If there are zero or more
-than one weight files, the popup exposes the clear host error instead of
-guessing which network to use.
+Nếu popup báo host không sẵn sàng, đọc nguyên văn lỗi: host phân biệt rõ thư
+mục Lc0 bị di chuyển, thiếu `lc0.exe`, thiếu `dnnl.dll`, không có weight hoặc
+có nhiều weight.
 
-## Development and release
+## Đổi weight mà không chạy lại Setup
 
-End users use the Release installer and do not build locally. Maintainers can
-build the host and setup manually on Windows:
+1. Thay file `*.pb.gz` cũ bằng weight mới trong thư mục Lc0 hoặc `weights/`.
+2. Đảm bảo tổng cộng chỉ còn đúng một file `*.pb.gz` ở hai vị trí đó; tên file
+   có thể tùy ý.
+3. Trong `chrome://extensions`, bấm **Reload** LC0 Bot; sau đó hard reload
+   trang Chess.com nếu đang mở.
+
+Native host được khởi động lại và quét weight mới. Chỉ cần chạy Setup lại khi
+thư mục Lc0 bị di chuyển hoặc cần cấu hình lại host.
+
+## Cập nhật extension
+
+Khi chỉ có thay đổi trong `extension/`, Setup không đổi. Cập nhật source bằng
+`git pull`, bấm **Reload** extension trong `chrome://extensions`, rồi hard
+reload trang Chess.com.
+
+MAIN world của extension chỉ làm việc với API bàn cờ Chess.com qua state nội bộ
+`__LC0BotMain`. Storage, scheduler và Native Messaging chạy ở isolated world;
+trang Chess.com không có đường gọi trực tiếp Native Messaging host.
+
+## Phát triển và phát hành
+
+Người dùng cuối không cần build local. Maintainer cần Python 3.12+ và Inno
+Setup 6+ để build thủ công:
 
 ```powershell
 cd lc0-bot-extension
@@ -55,31 +72,36 @@ cd lc0-bot-extension
 iscc "/DMyAppVersion=2026.07.30" LC0Bot.iss
 ```
 
-`LC0Bot.iss` creates a per-user installer. Its fixed public extension key
-keeps the unpacked extension ID stable, so the installer can safely restrict
-the Native Messaging host to this extension without asking users to copy an
-ID. The corresponding private key is intentionally not stored in this
-repository.
+`LC0Bot.iss` tạo installer per-user, chỉ hỗ trợ kiến trúc chạy x64 và dùng fixed
+public extension key. Nhờ đó Native Messaging host chỉ chấp nhận LC0 Bot mà
+không yêu cầu người dùng nhập Extension ID.
 
-GitHub Actions runs only after a push to `main` that changes
-`lc0-bot-extension/**` or its workflow. It builds the host, creates the setup
-executable, then creates or replaces the single release asset for the UTC date
-tag `lc0bot-vYYYY.MM.DD`. No checksum file or other release asset is produced.
+Workflow `.github/workflows/release-lc0-bot.yml` chỉ build Setup khi push vào
+`main` có thay đổi Native Host, build script/requirements, `LC0Bot.iss` hoặc
+chính workflow. Thay đổi `extension/` không tạo Setup mới. Khi chạy, workflow:
 
-## Project layout
+1. kiểm tra cú pháp Python, JavaScript và manifest;
+2. build `lc0-native-host.exe` bằng PyInstaller;
+3. build Setup bằng Inno Setup;
+4. tạo hoặc cập nhật Release theo ngày UTC `lc0bot-vYYYY.MM.DD`.
 
-- `extension/` — unpacked Manifest V3 extension.
-- `native_host.py` — length-prefixed JSON Native Messaging host and UCI client.
-- `build-native-host.ps1` / `requirements-build.txt` — reproducible PyInstaller host build.
-- `LC0Bot.iss` — Inno Setup installer and native-host Registry registration.
-- `.github/workflows/release-lc0-bot.yml` — CI build and daily Release upload.
+Release chỉ có một asset được upload: `LC0Bot-Setup-YYYY.MM.DD.exe`. GitHub có
+thể hiển thị thêm hai source archive tự sinh (`.zip` và `.tar.gz`).
 
-Build directories such as `build/`, `dist/`, Python cache, and PyInstaller
-specification files are local artifacts and are ignored by Git.
+## Cấu trúc thư mục
 
-## License and fair use
+- `extension/` — source unpacked Chrome extension.
+- `native_host.py` — Native Messaging host và UCI client.
+- `build-native-host.ps1`, `requirements-build.txt` — build host bằng
+  PyInstaller.
+- `LC0Bot.iss` — installer Inno Setup và đăng ký Native Messaging trên HKCU.
+- `../.github/workflows/release-lc0-bot.yml` — CI build và upload Release.
 
-This project does not provide, download, redistribute, or modify Lc0 binaries,
-DLLs, or neural-network weights. Users obtain them directly from the official
-Lc0 distribution and are responsible for applicable licenses and terms. Use
-the extension only in ways permitted by Chess.com and the games involved.
+`build/`, `dist/`, cache Python, PyInstaller spec và cấu hình runtime chứa
+đường dẫn máy người dùng đều bị Git ignore.
+
+## Giấy phép và sử dụng có trách nhiệm
+
+Lc0, DLL và neural-network weights được người dùng lấy trực tiếp từ Lc0; dự án
+này không phân phối chúng. Người dùng tự chịu trách nhiệm tuân thủ giấy phép
+Lc0 và các điều khoản liên quan, cũng như quy định Fair Play của Chess.com.

@@ -4,7 +4,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "lc0-bot-extension/**"
+      - "lc0-bot-extension/native_host.py"
+      - "lc0-bot-extension/build-native-host.ps1"
+      - "lc0-bot-extension/requirements-build.txt"
+      - "lc0-bot-extension/LC0Bot.iss"
       - ".github/workflows/release-lc0-bot.yml"
 
 permissions:
