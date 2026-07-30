@@ -1,87 +1,83 @@
-chrome.runtime.onInstalled.addListener(() => {
-  console.log("LC0 Bot extension installed");
-});
+const NATIVE_HOST_NAME = "com.lc0bot.nativehost";
+const NATIVE_REQUEST_TIMEOUT_MS = 15_000;
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (!message || message.type !== "LC0_BESTMOVE") {
+let nativePort = null;
+const pendingRequests = new Map();
+
+function errorResponse(requestId, code, message) {
+  return { ok: false, requestId, error: { code, message } };
+}
+
+function finishRequest(requestId, response) {
+  const pending = pendingRequests.get(requestId);
+  if (!pending) return;
+  clearTimeout(pending.timeoutId);
+  pendingRequests.delete(requestId);
+  pending.sendResponse(response);
+}
+
+function failPendingRequests(code, message) {
+  for (const requestId of [...pendingRequests.keys()]) finishRequest(requestId, errorResponse(requestId, code, message));
+}
+
+function handleNativeMessage(message) {
+  const requestId = typeof message?.requestId === "string" ? message.requestId : "";
+  if (!requestId || !pendingRequests.has(requestId)) return;
+  if (!message.ok) {
+    finishRequest(requestId, errorResponse(requestId, message.code || "NATIVE_HOST_ERROR", message.message || "Native LC0 host failed"));
     return;
   }
+  finishRequest(requestId, { ok: true, requestId, result: message });
+}
 
-  const requestId = typeof message.requestId === "string" ? message.requestId : "";
-  const fen = typeof message.fen === "string" ? message.fen.trim() : "";
-  const movetimeSec = Number.isFinite(message.movetimeSec) ? message.movetimeSec : 0.5;
-  const searchMode = typeof message.searchMode === "string" ? message.searchMode : "classic";
-
-  if (!requestId || !fen) {
-    sendResponse({
-      ok: false,
-      requestId,
-      error: {
-        code: "INVALID_REQUEST",
-        message: "Missing requestId or fen"
-      }
+function connectNativeHost() {
+  if (nativePort) return nativePort;
+  try {
+    const port = chrome.runtime.connectNative(NATIVE_HOST_NAME);
+    port.onMessage.addListener(handleNativeMessage);
+    port.onDisconnect.addListener(() => {
+      const details = chrome.runtime.lastError?.message || "Native LC0 host disconnected";
+      if (nativePort === port) nativePort = null;
+      failPendingRequests("NATIVE_HOST_DISCONNECTED", details);
     });
-    return true;
+    nativePort = port;
+    return port;
+  } catch (_) {
+    return null;
   }
+}
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-  fetch("http://127.0.0.1:3187/v1/bestmove", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      request_id: requestId,
-      fen,
-      movetime_s: movetimeSec,
-      search_mode: searchMode
-    }),
-    signal: controller.signal
-  }).then(async response => {
-    clearTimeout(timeoutId);
-    let payload = null;
-    try {
-      payload = await response.json();
-    } catch (_error) {
-      payload = null;
-    }
-
-    if (!response.ok || !payload || payload.ok !== true) {
-      sendResponse({
-        ok: false,
-        requestId,
-        error: {
-          code: payload && payload.code ? payload.code : "BRIDGE_ERROR",
-          message: payload && payload.message ? payload.message : `Bridge returned HTTP ${response.status}`
-        }
-      });
-      return;
-    }
-
-    sendResponse({
-      ok: true,
-      requestId,
-      result: {
-        bestmove: payload.bestmove || null,
-        ponder: payload.ponder || null,
-        elapsedMs: Number.isFinite(payload.elapsed_ms) ? payload.elapsed_ms : null,
-        fenEcho: payload.fen_echo || null,
-        searchMode: payload.search_mode || null
-      }
-    });
-  }).catch(error => {
-    clearTimeout(timeoutId);
-    sendResponse({
-      ok: false,
-      requestId,
-      error: {
-        code: error && error.name === "AbortError" ? "BRIDGE_TIMEOUT" : "BRIDGE_UNREACHABLE",
-        message: error && error.message ? error.message : "Failed to reach local bridge"
-      }
-    });
-  });
-
+function sendNativeRequest(payload, sendResponse) {
+  const requestId = payload.requestId;
+  if (!requestId || pendingRequests.has(requestId)) {
+    sendResponse(errorResponse(requestId, "INVALID_REQUEST", "Invalid or duplicate request ID"));
+    return false;
+  }
+  const port = connectNativeHost();
+  if (!port) {
+    sendResponse(errorResponse(requestId, "NATIVE_HOST_UNAVAILABLE", "LC0 Native Host is not installed or could not be started"));
+    return false;
+  }
+  const timeoutId = setTimeout(() => finishRequest(requestId, errorResponse(requestId, "NATIVE_HOST_TIMEOUT", "Timed out waiting for LC0 Native Host")), NATIVE_REQUEST_TIMEOUT_MS);
+  pendingRequests.set(requestId, { sendResponse, timeoutId });
+  try {
+    port.postMessage(payload);
+  } catch (error) {
+    finishRequest(requestId, errorResponse(requestId, "NATIVE_HOST_WRITE_FAILED", error instanceof Error ? error.message : "Could not send native request"));
+  }
   return true;
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!message?.type) return;
+  const requestId = typeof message.requestId === "string" ? message.requestId : "";
+  if (message.type === "LC0_STATUS") return sendNativeRequest({ type: "PING", requestId }, sendResponse);
+  if (message.type !== "LC0_BESTMOVE") return;
+  const fen = typeof message.fen === "string" ? message.fen.trim() : "";
+  const movetimeSec = Number(message.movetimeSec);
+  if (!requestId || !fen || !Number.isFinite(movetimeSec)) {
+    sendResponse(errorResponse(requestId, "INVALID_REQUEST", "Missing requestId, FEN, or move time"));
+    return false;
+  }
+  return sendNativeRequest({ type: "BESTMOVE", requestId, fen, movetimeMs: Math.round(Math.min(Math.max(movetimeSec, 0.01), 10) * 1000) }, sendResponse);
 });

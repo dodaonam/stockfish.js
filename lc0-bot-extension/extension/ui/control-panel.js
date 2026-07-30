@@ -9,8 +9,7 @@
     "autoMove",
     "goMovetimeSec",
     "randomDelayMinSec",
-    "randomDelayMaxSec",
-    "searchMode"
+    "randomDelayMaxSec"
   ];
 
   const PANEL_STYLE = `
@@ -21,7 +20,7 @@
 #lc0-control-root .lc0-row{display:flex;align-items:center;gap:8px;margin:8px 0;}
 #lc0-control-root .lc0-row.lc0-col{flex-direction:column;align-items:flex-start;}
 #lc0-control-root label{font-size:13px;color:#1f2937;}
-#lc0-control-root input[type="number"],#lc0-control-root select{width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;}
+#lc0-control-root input[type="number"]{width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;}
 #lc0-control-root .lc0-title{font-size:14px;font-weight:700;margin:0 0 6px;}
 #lc0-control-root .lc0-sub{margin:0 0 4px;color:#4b5563;font-size:12px;}
 `;
@@ -56,14 +55,6 @@
     <input type="number" id="randomDelayMaxSec" step="0.1" value="0.6">
   </div>
 
-  <div class="lc0-row lc0-col">
-    <label for="searchMode">Search Mode</label>
-    <select id="searchMode">
-      <option value="classic">classic</option>
-      <option value="policyhead">policyhead</option>
-      <option value="valuehead">valuehead</option>
-    </select>
-  </div>
 </div>
 `;
 
@@ -75,6 +66,10 @@
     style.id = "lc0-control-style";
     style.textContent = PANEL_STYLE;
     document.head.appendChild(style);
+  }
+
+  function getBoardElement() {
+    return document.querySelector("chess-board, wc-chess-board");
   }
 
   function byId(id) {
@@ -104,8 +99,7 @@
       autoMove: byId("autoMove")?.checked ?? baseSettings.autoMove,
       goMovetimeSec: readNumberOrFallback(byId("goMovetimeSec")?.value, baseSettings.goMovetimeSec),
       randomDelayMinSec: readNumberOrFallback(byId("randomDelayMinSec")?.value, baseSettings.randomDelayMinSec),
-      randomDelayMaxSec: readNumberOrFallback(byId("randomDelayMaxSec")?.value, baseSettings.randomDelayMaxSec),
-      searchMode: byId("searchMode")?.value ?? baseSettings.searchMode
+      randomDelayMaxSec: readNumberOrFallback(byId("randomDelayMaxSec")?.value, baseSettings.randomDelayMaxSec)
     };
   }
 
@@ -115,8 +109,7 @@
       autoMove: !!input.autoMove,
       goMovetimeSec: clamp(Number(input.goMovetimeSec), config.MOVETIME_SEC_MIN, config.MOVETIME_SEC_MAX),
       randomDelayMinSec: clamp(Number(input.randomDelayMinSec), config.RANDOM_DELAY_SEC_MIN, config.RANDOM_DELAY_SEC_MAX),
-      randomDelayMaxSec: clamp(Number(input.randomDelayMaxSec), config.RANDOM_DELAY_SEC_MIN, config.RANDOM_DELAY_SEC_MAX),
-      searchMode: ["classic", "policyhead", "valuehead"].includes(input.searchMode) ? input.searchMode : config.DEFAULT_SEARCH_MODE
+      randomDelayMaxSec: clamp(Number(input.randomDelayMaxSec), config.RANDOM_DELAY_SEC_MIN, config.RANDOM_DELAY_SEC_MAX)
     };
 
     if (normalized.randomDelayMinSec > normalized.randomDelayMaxSec) {
@@ -140,14 +133,12 @@
     const goMovetimeSec = byId("goMovetimeSec");
     const randomDelayMinSec = byId("randomDelayMinSec");
     const randomDelayMaxSec = byId("randomDelayMaxSec");
-    const searchMode = byId("searchMode");
 
     if (autoRun) autoRun.checked = safe.autoRun;
     if (autoMove) autoMove.checked = safe.autoMove;
     if (goMovetimeSec) goMovetimeSec.value = String(safe.goMovetimeSec);
     if (randomDelayMinSec) randomDelayMinSec.value = String(safe.randomDelayMinSec);
     if (randomDelayMaxSec) randomDelayMaxSec.value = String(safe.randomDelayMaxSec);
-    if (searchMode) searchMode.value = safe.searchMode;
 
     Object.assign(settings, safe);
   }
@@ -214,20 +205,16 @@
       input.addEventListener("change", onSettingsInteraction);
     });
 
-    const selectInputs = panel.querySelectorAll("select");
-    selectInputs.forEach(input => {
-      input.addEventListener("change", onSettingsInteraction);
-    });
   }
 
   function loadControlPanel() {
     try {
-      runtime.board = ChessBot.dom.getBoardElement() || runtime.board;
+      runtime.board = getBoardElement() || runtime.board;
       const anchor = runtime.board && runtime.board.parentElement
         ? (runtime.board.parentElement.parentElement || runtime.board.parentElement)
         : document.body;
 
-      const existing = ChessBot.dom.getControlPanelRoot();
+      const existing = document.getElementById("lc0-control-root");
       if (existing) {
         existing.remove();
       }
@@ -236,6 +223,7 @@
 
       const root = document.createElement("div");
       root.id = "lc0-control-root";
+      root.style.display = runtime.extensionEnabled ? "" : "none";
 
       const toggle = document.createElement("button");
       toggle.id = "lc0-toggle";

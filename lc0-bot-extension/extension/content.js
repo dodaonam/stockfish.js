@@ -2,35 +2,28 @@
   "use strict";
 
   let started = false;
-  let pendingToggleState = null;
 
-  window.addEventListener("chess-bot-toggle", (event) => {
-    pendingToggleState = event && event.detail ? event.detail.enabled : null;
-    if (typeof window.setChessBotEnabled === "function") {
-      window.setChessBotEnabled(pendingToggleState);
-    }
-  });
-
-  function start() {
-    if (started) {
-      return;
-    }
-
-    if (!window.ChessBot || !window.ChessBot.scheduler) {
-      setTimeout(start, 50);
-      return;
-    }
-
-    started = true;
-    window.ChessBot.scheduler.start();
-    if (pendingToggleState !== null && typeof window.setChessBotEnabled === "function") {
-      window.setChessBotEnabled(pendingToggleState);
+  function applyEnabled(enabled) {
+    if (window.ChessBot?.scheduler) {
+      window.ChessBot.scheduler.setChessBotEnabled(enabled);
     }
   }
 
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === "TOGGLE_EXTENSION") applyEnabled(message.enabled);
+  });
+
+  async function start() {
+    if (started || !window.ChessBot?.scheduler) return;
+    started = true;
+    const stored = await chrome.storage.local.get(["extensionEnabled"]);
+    window.ChessBot.scheduler.start();
+    applyEnabled(stored.extensionEnabled !== false);
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start);
+    document.addEventListener("DOMContentLoaded", () => { start().catch(console.error); }, { once: true });
   } else {
-    start();
+    start().catch(console.error);
   }
 })();

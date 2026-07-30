@@ -1,15 +1,16 @@
 {
   "manifest_version": 3,
   "name": "LC0 Bot",
-  "version": "0.1.0",
-  "description": "Chess.com bot using local lc0 bridge",
+  "version": "0.3.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3lAeeGW2QC3p/35CQahwSu/JVW5zhc4HVovB/GoF+35v5QrOpEkru9NQCj7dpoG/ACXd5+z+qxv7i95mRr3YBgc6FpKAOygvoew+CUCVmOcZaZGl9CO9bcGOAA3zRn7S5SMkoYiRTAVLSKioiV0f9YEm/LSp5v6oUCYJxhrd5AtnwT94O5FYufT/UZbJMjv5fy4AF2hC1zmkEjy9L9TA6tO/AiBFgpqGY84U26BBoVmzrlQCAOjhOu7Z18PzPytQpvvbX3T7GXocjvJ+ku3cHLdjFpmJTq1sZBHrfxNHfsR64f5xgxetXPo5kCpasa+DlW0M3aFNNxaGO1aKg0k83QIDAQAB",
+  "description": "Chess.com bot using a local LC0 Native Messaging host",
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "nativeMessaging"
   ],
   "host_permissions": [
-    "https://www.chess.com/*",
-    "http://127.0.0.1:3187/*"
+    "https://www.chess.com/*"
   ],
   "content_scripts": [
     {
@@ -18,7 +19,14 @@
         "https://www.chess.com/game/*",
         "https://www.chess.com/puzzles/*"
       ],
-      "js": ["bridge.js"],
+      "js": [
+        "core/logger.js",
+        "core/state.js",
+        "core/bridge-api.js",
+        "ui/control-panel.js",
+        "automation/scheduler.js",
+        "content.js"
+      ],
       "run_at": "document_start",
       "all_frames": false
     },
@@ -31,11 +39,8 @@
       "js": [
         "core/logger.js",
         "core/state.js",
-        "core/bridge-api.js",
         "adapters/chesscom-dom.js",
-        "ui/control-panel.js",
-        "automation/scheduler.js",
-        "content.js"
+        "main-world.js"
       ],
       "run_at": "document_start",
       "all_frames": false,

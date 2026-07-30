@@ -1,8 +1,26 @@
 const enableToggle = document.getElementById("enableToggle");
+const hostStatus = document.getElementById("hostStatus");
+
+function makeRequestId() {
+  return `status-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+async function refreshHostStatus() {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "LC0_STATUS", requestId: makeRequestId() });
+    hostStatus.textContent = response?.ok
+      ? "Local LC0 host is ready."
+      : `Local LC0 host unavailable: ${response?.error?.message || "unknown error"}`;
+  } catch (_) {
+    hostStatus.textContent = "Local LC0 host unavailable.";
+  }
+}
 
 chrome.storage.local.get(["extensionEnabled"], (result) => {
   enableToggle.checked = result.extensionEnabled !== false;
 });
+
+refreshHostStatus();
 
 enableToggle.addEventListener("change", () => {
   const enabled = enableToggle.checked;
