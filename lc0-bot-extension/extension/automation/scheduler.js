@@ -32,6 +32,7 @@
     runtime.inFlightAnalysisKey = null;
     runtime.isThinking = false;
     runtime.highlightForFen = null;
+    runtime.bestMoveForFen = null;
     if (resetLastRequested) {
       runtime.lastRequestedFen = null;
       runtime.lastRequestedAnalysisKey = null;
@@ -69,8 +70,6 @@
     runtime.inFlightRequestId = requestId;
     runtime.inFlightFen = fen;
     runtime.inFlightAnalysisKey = analysisKey;
-    runtime.lastRequestedFen = fen;
-    runtime.lastRequestedAnalysisKey = analysisKey;
     runtime.isThinking = true;
 
     try {
@@ -102,12 +101,17 @@
         } else {
           await ChessBot.bridge.highlightMoveUci(bestmove);
           runtime.highlightForFen = current.fen;
+          ChessBot.logger.warn("Auto move was not applied; allowing retry", { fen, bestmove });
+          return;
         }
       } else {
         await ChessBot.bridge.highlightMoveUci(bestmove);
         runtime.highlightForFen = current.fen;
         ChessBot.logger.info("Best move", bestmove);
       }
+      runtime.bestMoveForFen = settings.autoMove ? null : { fen, move: bestmove };
+      runtime.lastRequestedFen = fen;
+      runtime.lastRequestedAnalysisKey = analysisKey;
       runtime.lastAppliedFen = current.fen;
     } catch (error) {
       if (runtime.inFlightRequestId === requestId) ChessBot.logger.warn("Bestmove request threw", error);
@@ -121,7 +125,26 @@
     }
   }
 
+  async function applyStoredBestMoveIfAvailable(fen) {
+    const stored = runtime.bestMoveForFen;
+    if (!settings.autoMove || !stored || stored.fen !== fen || runtime.inFlightRequestId) return false;
+
+    const moveResult = await ChessBot.bridge.movePieceUci(stored.move);
+    if (!moveResult.applied) {
+      ChessBot.logger.warn("Stored best move was not applied; keeping it available for retry", stored);
+      return false;
+    }
+
+    await ChessBot.bridge.clearHighlights();
+    runtime.highlightForFen = null;
+    runtime.lastAppliedFen = fen;
+    runtime.bestMoveForFen = null;
+    ChessBot.logger.info("Applied stored best move after enabling Auto Move", stored.move);
+    return true;
+  }
+
   async function runSchedulerLoop() {
+    let previousAutoMove = settings.autoMove;
     while (true) {
       try {
         if (!runtime.extensionEnabled) {
@@ -145,7 +168,13 @@
         if (runtime.highlightForFen && fen !== runtime.highlightForFen) {
           await ChessBot.bridge.clearHighlights();
           runtime.highlightForFen = null;
+          runtime.bestMoveForFen = null;
         }
+
+        if (!previousAutoMove && settings.autoMove) {
+          await applyStoredBestMoveIfAvailable(fen);
+        }
+        previousAutoMove = settings.autoMove;
 
         if (runtime.pendingDueAt > 0) {
           const desiredKey = buildAnalysisKey(fen);

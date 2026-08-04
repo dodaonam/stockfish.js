@@ -39,7 +39,8 @@
     lastRequestedFen: null,
     lastRequestedAnalysisKey: null,
     lastAppliedFen: null,
-    highlightForFen: null
+    highlightForFen: null,
+    bestMoveForFen: null
   };
 
   const settings = {
