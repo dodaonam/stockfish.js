@@ -24,6 +24,8 @@ MAX_MESSAGE_BYTES = 1_000_000
 CONFIG_FILE_NAME = "engine-config.json"
 STARTUP_TIMEOUT_SEC = 15.0
 SEARCH_GRACE_SEC = 5.0
+NODES_MIN = 1
+NODES_MAX = 10_000
 UCI_MOVE = re.compile(r"^[a-h][1-8][a-h][1-8][qrbn]?$", re.IGNORECASE)
 PIECES = re.compile(r"^[prnbqkPRNBQK1-8]+$")
 EN_PASSANT = re.compile(r"^(-|[a-h][36])$")
@@ -266,15 +268,35 @@ class UciEngine:
             self.stop()
             raise
 
-    def bestmove(self, fen: str, movetime_ms: int) -> tuple[str | None, str | None, int]:
+    def bestmove(
+        self,
+        fen: str,
+        search_mode: str,
+        movetime_ms: int | None = None,
+        nodes: int | None = None,
+    ) -> tuple[str | None, str | None, int]:
         self.start()
         started_at = time.perf_counter()
         self._send("position fen " + fen)
-        self._send(f"go movetime {movetime_ms}")
+
+        if search_mode == "nodes":
+            if nodes is None or not NODES_MIN <= nodes <= NODES_MAX:
+                raise HostError("INVALID_REQUEST", f"nodes must be an integer from {NODES_MIN} to {NODES_MAX}")
+            go_command = f"go nodes {nodes}"
+            timeout_sec = 60.0
+        elif search_mode == "movetime":
+            if movetime_ms is None or movetime_ms < 1:
+                raise HostError("INVALID_REQUEST", "movetimeMs must be positive")
+            go_command = f"go movetime {movetime_ms}"
+            timeout_sec = movetime_ms / 1000 + SEARCH_GRACE_SEC
+        else:
+            raise HostError("INVALID_REQUEST", "searchMode must be movetime or nodes")
+
+        self._send(go_command)
 
         line = self._wait_for(
             lambda candidate: candidate.lower().startswith("bestmove "),
-            movetime_ms / 1000 + SEARCH_GRACE_SEC,
+            timeout_sec,
             "Timed out waiting for lc0 bestmove",
         )
         tokens = line.split()
@@ -334,12 +356,33 @@ def handle_message(engine: UciEngine, message: dict[str, Any]) -> dict[str, Any]
         raise HostError("INVALID_REQUEST", "BESTMOVE requests require a requestId")
 
     fen = validate_fen(message.get("fen"))
-    raw_movetime = message.get("movetimeMs")
-    if not isinstance(raw_movetime, (int, float)) or isinstance(raw_movetime, bool):
-        raise HostError("INVALID_REQUEST", "movetimeMs must be a number")
-    movetime_ms = min(max(int(round(raw_movetime)), 10), 10_000)
+    search_mode = message.get("searchMode", "movetime")
 
-    bestmove, ponder, elapsed_ms = engine.bestmove(fen, movetime_ms)
+    if search_mode == "nodes":
+        raw_nodes = message.get("nodes")
+        if (
+            not isinstance(raw_nodes, int)
+            or isinstance(raw_nodes, bool)
+            or not NODES_MIN <= raw_nodes <= NODES_MAX
+        ):
+            raise HostError("INVALID_REQUEST", f"nodes must be an integer from {NODES_MIN} to {NODES_MAX}")
+        nodes = raw_nodes
+        movetime_ms = None
+    elif search_mode == "movetime":
+        raw_movetime = message.get("movetimeMs")
+        if not isinstance(raw_movetime, (int, float)) or isinstance(raw_movetime, bool):
+            raise HostError("INVALID_REQUEST", "movetimeMs must be a number")
+        movetime_ms = min(max(int(round(raw_movetime)), 1), 10_000)
+        nodes = None
+    else:
+        raise HostError("INVALID_REQUEST", "searchMode must be movetime or nodes")
+
+    bestmove, ponder, elapsed_ms = engine.bestmove(
+        fen,
+        search_mode,
+        movetime_ms=movetime_ms,
+        nodes=nodes,
+    )
     return {
         "ok": True,
         "requestId": request_id,
@@ -347,6 +390,9 @@ def handle_message(engine: UciEngine, message: dict[str, Any]) -> dict[str, Any]
         "ponder": ponder,
         "elapsedMs": elapsed_ms,
         "fenEcho": fen,
+        "searchMode": search_mode,
+        "movetimeMs": movetime_ms,
+        "nodes": nodes,
     }
 
 

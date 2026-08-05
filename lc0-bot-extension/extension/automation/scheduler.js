@@ -16,11 +16,15 @@
 
   function normalizeMovetimeSec(value) {
     const numeric = Number(value);
-    return Number.isFinite(numeric) ? Math.round(numeric * 1000) / 1000 : config.DEFAULT_MOVETIME_SEC;
+    return Number.isFinite(numeric) ? Math.round(numeric * 10000) / 10000 : config.DEFAULT_MOVETIME_SEC;
   }
 
   function buildAnalysisKey(fen) {
-    return fen ? `${fen}|${normalizeMovetimeSec(settings.goMovetimeSec)}` : "";
+    if (!fen) return "";
+    if (settings.searchMode === "nodes") {
+      return `${fen}|nodes:${Math.round(settings.goNodes)}`;
+    }
+    return `${fen}|movetime:${normalizeMovetimeSec(settings.goMovetimeSec)}`;
   }
 
   function clearPending(resetLastRequested = false) {
@@ -76,7 +80,9 @@
       const response = await ChessBot.bridge.requestBestMove({
         requestId,
         fen,
-        movetimeSec: settings.goMovetimeSec
+        searchMode: settings.searchMode,
+        movetimeSec: settings.goMovetimeSec,
+        nodes: settings.goNodes
       });
       if (runtime.inFlightRequestId !== requestId || !response?.ok) {
         if (!response?.ok) ChessBot.logger.warn("Bestmove request failed", response?.error);
