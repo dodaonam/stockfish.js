@@ -7,7 +7,9 @@
   const STORAGE_KEYS = [
     "autoRun",
     "autoMove",
+    "searchMode",
     "goMovetimeSec",
+    "goNodes",
     "randomDelayMinSec",
     "randomDelayMaxSec"
   ];
@@ -20,7 +22,7 @@
 #lc0-control-root .lc0-row{display:flex;align-items:center;gap:8px;margin:8px 0;}
 #lc0-control-root .lc0-row.lc0-col{flex-direction:column;align-items:flex-start;}
 #lc0-control-root label{font-size:13px;color:#1f2937;}
-#lc0-control-root input[type="number"]{width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;}
+#lc0-control-root input[type="number"],#lc0-control-root select{width:100%;padding:6px 8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;}
 #lc0-control-root .lc0-title{font-size:14px;font-weight:700;margin:0 0 6px;}
 #lc0-control-root .lc0-sub{margin:0 0 4px;color:#4b5563;font-size:12px;}
 `;
@@ -41,18 +43,31 @@
   </div>
 
   <div class="lc0-row lc0-col">
+    <label for="searchMode">Search Mode</label>
+    <select id="searchMode">
+      <option value="movetime">Move Time</option>
+      <option value="nodes">Nodes</option>
+    </select>
+  </div>
+
+  <div class="lc0-row lc0-col" id="movetimeSettings">
     <label for="goMovetimeSec">Go Move Time (s)</label>
-    <input type="number" id="goMovetimeSec" step="0.05" value="0.5">
+    <input type="number" id="goMovetimeSec" step="0.001" value="0.01" min="0.001" max="10">
+  </div>
+
+  <div class="lc0-row lc0-col" id="nodesSettings">
+    <label for="goNodes">Go Nodes</label>
+    <input type="number" id="goNodes" step="1" value="10000" min="1" max="10000">
   </div>
 
   <div class="lc0-row lc0-col">
     <label for="randomDelayMinSec">Random Delay Min (s)</label>
-    <input type="number" id="randomDelayMinSec" step="0.1" value="0.1">
+    <input type="number" id="randomDelayMinSec" step="0.1" value="0" min="0" max="30">
   </div>
 
   <div class="lc0-row lc0-col">
     <label for="randomDelayMaxSec">Random Delay Max (s)</label>
-    <input type="number" id="randomDelayMaxSec" step="0.1" value="0.6">
+    <input type="number" id="randomDelayMaxSec" step="0.1" value="0" min="0" max="30">
   </div>
 
 </div>
@@ -97,7 +112,9 @@
     return {
       autoRun: byId("autoRun")?.checked ?? baseSettings.autoRun,
       autoMove: byId("autoMove")?.checked ?? baseSettings.autoMove,
+      searchMode: byId("searchMode")?.value ?? baseSettings.searchMode,
       goMovetimeSec: readNumberOrFallback(byId("goMovetimeSec")?.value, baseSettings.goMovetimeSec),
+      goNodes: readNumberOrFallback(byId("goNodes")?.value, baseSettings.goNodes),
       randomDelayMinSec: readNumberOrFallback(byId("randomDelayMinSec")?.value, baseSettings.randomDelayMinSec),
       randomDelayMaxSec: readNumberOrFallback(byId("randomDelayMaxSec")?.value, baseSettings.randomDelayMaxSec)
     };
@@ -107,7 +124,9 @@
     const normalized = {
       autoRun: !!input.autoRun,
       autoMove: !!input.autoMove,
+      searchMode: input.searchMode === "nodes" ? "nodes" : "movetime",
       goMovetimeSec: clamp(Number(input.goMovetimeSec), config.MOVETIME_SEC_MIN, config.MOVETIME_SEC_MAX),
+      goNodes: Math.round(clamp(Number(input.goNodes), config.NODES_MIN, config.NODES_MAX)),
       randomDelayMinSec: clamp(Number(input.randomDelayMinSec), config.RANDOM_DELAY_SEC_MIN, config.RANDOM_DELAY_SEC_MAX),
       randomDelayMaxSec: clamp(Number(input.randomDelayMaxSec), config.RANDOM_DELAY_SEC_MIN, config.RANDOM_DELAY_SEC_MAX)
     };
@@ -130,13 +149,21 @@
 
     const autoRun = byId("autoRun");
     const autoMove = byId("autoMove");
+    const searchMode = byId("searchMode");
     const goMovetimeSec = byId("goMovetimeSec");
+    const goNodes = byId("goNodes");
+    const movetimeSettings = byId("movetimeSettings");
+    const nodesSettings = byId("nodesSettings");
     const randomDelayMinSec = byId("randomDelayMinSec");
     const randomDelayMaxSec = byId("randomDelayMaxSec");
 
     if (autoRun) autoRun.checked = safe.autoRun;
     if (autoMove) autoMove.checked = safe.autoMove;
+    if (searchMode) searchMode.value = safe.searchMode;
     if (goMovetimeSec) goMovetimeSec.value = String(safe.goMovetimeSec);
+    if (goNodes) goNodes.value = String(safe.goNodes);
+    if (movetimeSettings) movetimeSettings.style.display = safe.searchMode === "movetime" ? "flex" : "none";
+    if (nodesSettings) nodesSettings.style.display = safe.searchMode === "nodes" ? "flex" : "none";
     if (randomDelayMinSec) randomDelayMinSec.value = String(safe.randomDelayMinSec);
     if (randomDelayMaxSec) randomDelayMaxSec.value = String(safe.randomDelayMaxSec);
 
@@ -204,6 +231,8 @@
     checkboxInputs.forEach(input => {
       input.addEventListener("change", onSettingsInteraction);
     });
+
+    byId("searchMode")?.addEventListener("change", onSettingsInteraction);
 
   }
 

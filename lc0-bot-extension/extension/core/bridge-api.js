@@ -47,12 +47,14 @@
     });
   }
 
-  async function requestBestMove({ requestId, fen, movetimeSec }) {
+  async function requestBestMove({ requestId, fen, searchMode, movetimeSec, nodes }) {
     return chrome.runtime.sendMessage({
       type: "LC0_BESTMOVE",
       requestId,
       fen,
-      movetimeSec
+      searchMode,
+      movetimeSec,
+      nodes
     });
   }
 

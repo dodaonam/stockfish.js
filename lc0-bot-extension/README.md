@@ -33,8 +33,13 @@ LC0 Bot không tải, đóng gói, sao chép hoặc sửa đổi `lc0.exe`, DLL 
 4. Mở popup của LC0 Bot. Thông báo `Local LC0 host is ready.` xác nhận config,
    `lc0.exe`, `dnnl.dll` và weight hiện hợp lệ.
 5. Mở trang Chess.com thuộc `/play/`, `/game/` hoặc `/puzzles/`. Nút **LC0**
-   màu xanh mở bảng thiết lập Auto Run, Auto Move, thời gian tính nước và độ
-   trễ ngẫu nhiên.
+   màu xanh mở bảng thiết lập Auto Run, Auto Move, chế độ tính nước
+   (`Move Time` hoặc `Nodes`), giá trị tìm kiếm và độ trễ ngẫu nhiên.
+
+Ở chế độ `Move Time`, Lc0 nhận lệnh UCI dạng `go movetime <milliseconds>`.
+Ở chế độ `Nodes`, Lc0 nhận lệnh `go nodes <number>`; giá trị nodes được giới
+hạn từ 1 đến 10000. Nodes là ngân sách search/visit của Lc0, không phải một
+quy đổi cố định từ giây sang thời gian thực.
 
 Nếu popup báo host không sẵn sàng, đọc nguyên văn lỗi: host phân biệt rõ thư
 mục Lc0 bị di chuyển, thiếu `lc0.exe`, thiếu `dnnl.dll`, không có weight hoặc

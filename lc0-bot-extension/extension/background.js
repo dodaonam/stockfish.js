@@ -1,5 +1,5 @@
 const NATIVE_HOST_NAME = "com.lc0bot.nativehost";
-const NATIVE_REQUEST_TIMEOUT_MS = 15_000;
+const NATIVE_REQUEST_TIMEOUT_MS = 60_000;
 
 let nativePort = null;
 const pendingRequests = new Map();
@@ -74,10 +74,25 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "LC0_STATUS") return sendNativeRequest({ type: "PING", requestId }, sendResponse);
   if (message.type !== "LC0_BESTMOVE") return;
   const fen = typeof message.fen === "string" ? message.fen.trim() : "";
-  const movetimeSec = Number(message.movetimeSec);
-  if (!requestId || !fen || !Number.isFinite(movetimeSec)) {
-    sendResponse(errorResponse(requestId, "INVALID_REQUEST", "Missing requestId, FEN, or move time"));
+  const searchMode = message.searchMode === "nodes" ? "nodes" : "movetime";
+  if (!requestId || !fen) {
+    sendResponse(errorResponse(requestId, "INVALID_REQUEST", "Missing requestId or FEN"));
     return false;
   }
-  return sendNativeRequest({ type: "BESTMOVE", requestId, fen, movetimeMs: Math.round(Math.min(Math.max(movetimeSec, 0.01), 10) * 1000) }, sendResponse);
+
+  if (searchMode === "nodes") {
+    const nodes = Number(message.nodes);
+    if (!Number.isInteger(nodes) || nodes < 1 || nodes > 10000) {
+      sendResponse(errorResponse(requestId, "INVALID_REQUEST", "nodes must be an integer from 1 to 10000"));
+      return false;
+    }
+    return sendNativeRequest({ type: "BESTMOVE", requestId, fen, searchMode, nodes }, sendResponse);
+  }
+
+  const movetimeSec = Number(message.movetimeSec);
+  if (!Number.isFinite(movetimeSec)) {
+    sendResponse(errorResponse(requestId, "INVALID_REQUEST", "movetimeSec must be a number"));
+    return false;
+  }
+  return sendNativeRequest({ type: "BESTMOVE", requestId, fen, searchMode, movetimeMs: Math.round(Math.min(Math.max(movetimeSec, 0.001), 10) * 1000) }, sendResponse);
 });
