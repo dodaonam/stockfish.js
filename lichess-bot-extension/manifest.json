@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Lichess Stockfish Coach",
+  "version": "0.1.0",
+  "description": "Stockfish move hints for Lichess AI games.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://lichess.org/*",
+    "https://raw.githubusercontent.com/*",
+    "https://cdn.jsdelivr.net/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://lichess.org/*"],
+      "js": ["page/lichess-main-world.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://lichess.org/*"],
+      "js": [
+        "core/config.js",
+        "core/logger.js",
+        "core/state.js",
+        "core/storage.js",
+        "core/session.js",
+        "content/bridge.js",
+        "engine/uci-parser.js",
+        "engine/stockfish.js",
+        "ui/move-overlay.js",
+        "ui/control-panel.js",
+        "automation/coach-scheduler.js",
+        "content/content.js"
+      ],
+      "run_at": "document_start",
+      "world": "ISOLATED",
+      "all_frames": false
+    }
+  ],
+  "background": {"service_worker": "background.js"},
+  "action": {
+    "default_title": "Lichess Stockfish Coach",
+    "default_popup": "popup.html"
+  }
+}
