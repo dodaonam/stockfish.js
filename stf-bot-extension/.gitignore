@@ -1,0 +1,15 @@
+.DS_Store
+
+# Python local environment
+__pycache__/
+*.egg-info/
+
+# Native host build output
+build/
+dist/
+*.spec
+engine-config.json
+com.stfbot.nativehost.json
+
+# Editor and runtime noise
+*.log

@@ -1,0 +1,89 @@
+const NATIVE_HOST_NAME = "com.stfbot.nativehost";
+const NATIVE_REQUEST_TIMEOUT_MS = 180_000;
+
+let nativePort = null;
+const pendingRequests = new Map();
+
+function errorResponse(requestId, code, message) {
+  return { ok: false, requestId, error: { code, message } };
+}
+
+function finishRequest(requestId, response) {
+  const pending = pendingRequests.get(requestId);
+  if (!pending) return;
+  clearTimeout(pending.timeoutId);
+  pendingRequests.delete(requestId);
+  pending.sendResponse(response);
+}
+
+function failPendingRequests(code, message) {
+  for (const requestId of [...pendingRequests.keys()]) finishRequest(requestId, errorResponse(requestId, code, message));
+}
+
+function handleNativeMessage(message) {
+  const requestId = typeof message?.requestId === "string" ? message.requestId : "";
+  if (!requestId || !pendingRequests.has(requestId)) return;
+  if (!message.ok) {
+    finishRequest(requestId, errorResponse(requestId, message.code || "NATIVE_HOST_ERROR", message.message || "Native Stockfish host failed"));
+    return;
+  }
+  finishRequest(requestId, { ok: true, requestId, result: message });
+}
+
+function connectNativeHost() {
+  if (nativePort) return nativePort;
+  try {
+    const port = chrome.runtime.connectNative(NATIVE_HOST_NAME);
+    port.onMessage.addListener(handleNativeMessage);
+    port.onDisconnect.addListener(() => {
+      const details = chrome.runtime.lastError?.message || "Native Stockfish host disconnected";
+      if (nativePort === port) nativePort = null;
+      failPendingRequests("NATIVE_HOST_DISCONNECTED", details);
+    });
+    nativePort = port;
+    return port;
+  } catch (_) {
+    return null;
+  }
+}
+
+function sendNativeRequest(payload, sendResponse) {
+  const requestId = payload.requestId;
+  if (!requestId || pendingRequests.has(requestId)) {
+    sendResponse(errorResponse(requestId, "INVALID_REQUEST", "Invalid or duplicate request ID"));
+    return false;
+  }
+  const port = connectNativeHost();
+  if (!port) {
+    sendResponse(errorResponse(requestId, "NATIVE_HOST_UNAVAILABLE", "Stockfish Native Host is not installed or could not be started"));
+    return false;
+  }
+  const timeoutId = setTimeout(() => finishRequest(requestId, errorResponse(requestId, "NATIVE_HOST_TIMEOUT", "Timed out waiting for Stockfish Native Host")), NATIVE_REQUEST_TIMEOUT_MS);
+  pendingRequests.set(requestId, { sendResponse, timeoutId });
+  try {
+    port.postMessage(payload);
+  } catch (error) {
+    finishRequest(requestId, errorResponse(requestId, "NATIVE_HOST_WRITE_FAILED", error instanceof Error ? error.message : "Could not send native request"));
+  }
+  return true;
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!message?.type) return;
+  const requestId = typeof message.requestId === "string" ? message.requestId : "";
+  if (message.type === "STF_STATUS") return sendNativeRequest({ type: "PING", requestId }, sendResponse);
+  if (message.type !== "STF_BESTMOVE") return;
+  const fen = typeof message.fen === "string" ? message.fen.trim() : "";
+  const depth = Number(message.depth);
+  const limitStrength = message.limitStrength === true;
+  const elo = Number(message.elo);
+  if (!requestId || !fen || !Number.isInteger(depth) || depth < 1 || depth > 20) {
+    sendResponse(errorResponse(requestId, "INVALID_REQUEST", "Missing requestId/FEN or invalid depth"));
+    return false;
+  }
+  if (limitStrength && (!Number.isInteger(elo) || elo < 1500 || elo > 3000 || elo % 100 !== 0)) {
+    sendResponse(errorResponse(requestId, "INVALID_REQUEST", "elo must be an integer from 1500 to 3000 in steps of 100"));
+    return false;
+  }
+  return sendNativeRequest({ type: "BESTMOVE", requestId, fen, depth, limitStrength, elo: limitStrength ? elo : null }, sendResponse);
+});

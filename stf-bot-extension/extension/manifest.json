@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "STF Bot",
+  "version": "0.3.0",
+  "description": "Chess.com bot using a local Stockfish Native Messaging host",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzLVMJAyV5stJNTk/Ow9QYMHwSzGfxPHIcF4X4eEU4ohCJfTJ2V+lXe3DXzS4TiSSCxMh2XfNyPXczE1Jrwo1wmlIJ7gToypWEZvbqkmZ20v2PfVZcC4TbErscsvBM7d0s59QVkZSBxsCKBW/qvkpI355iyT9+3ududJIqZPAz4z/AE19eSVwyUmDkXqZNwiInvjPaEsTflghCe+Xjz9js5GpU304joifh+y9E6qZG8kXTs02I4Ln4PIQtpJ6Xu2rUYRMwfQK9bvZBoRXtTuMgjXlzpiuRIuFr384OP4KadFF2YTOmOBG2ZH7IMzCl9NyC7FugTBQByilCG55fK4OtQIDAQAB",
+  "permissions": [
+    "storage",
+    "tabs",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://www.chess.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.chess.com/play/*",
+        "https://www.chess.com/game/*",
+        "https://www.chess.com/puzzles/*"
+      ],
+      "js": [
+        "core/logger.js",
+        "core/state.js",
+        "core/bridge-api.js",
+        "ui/control-panel.js",
+        "automation/scheduler.js",
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://www.chess.com/play/*",
+        "https://www.chess.com/game/*",
+        "https://www.chess.com/puzzles/*"
+      ],
+      "js": [
+        "adapters/chesscom-dom.js",
+        "main-world.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "MAIN"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "STF Bot",
+    "default_popup": "popup.html"
+  }
+}
