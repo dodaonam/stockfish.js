@@ -58,8 +58,8 @@ end;
 
 procedure InitializeWizard;
 begin
-  EngineFilePage := CreateInputFilePage(wpSelectDir, 'Select your Stockfish executable', 'Choose the Stockfish executable', 'Select a Stockfish Windows executable. Setup does not copy or download Stockfish.', False, '');
-  EngineFilePage.Add('Stockfish executable:', 'Executable files (*.exe)|*.exe|All files|*.*', 'exe', '');
+  EngineFilePage := CreateInputFilePage(wpSelectDir, 'Select your Stockfish executable', 'Choose the Stockfish executable', 'Select a Stockfish Windows executable. Setup does not copy or download Stockfish.');
+  EngineFilePage.Add('Stockfish executable:', 'Executable files (*.exe)|*.exe|All files|*.*', 'exe');
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
