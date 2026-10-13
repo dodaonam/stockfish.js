@@ -1,112 +1,91 @@
-# LC0 Bot cho Windows
+# LC0 Bot for Windows and Ubuntu
 
-LC0 Bot là Chrome extension Manifest V3 chạy ở chế độ **Load unpacked**. Nó
-phân tích thế cờ Chess.com bằng bản Lc0 Windows CPU/oneDNN cục bộ qua Chrome
-Native Messaging.
+LC0 Bot is a Manifest V3 extension installed with **Load unpacked**. It reads a Chess.com position and sends it to a local Lc0 CPU engine through Chrome/Brave Native Messaging.
 
 ```text
-Chess.com → extension → Native Messaging host → lc0.exe
+Chess.com → extension → Native Messaging host → Lc0 CPU engine
 ```
 
-## Yêu cầu
+The JavaScript extension is shared by Windows and Ubuntu. The Native host is installed separately on each computer. The extension does not download or install itself from a browser store.
 
-- Google Chrome trên Windows 64-bit có thể chạy ứng dụng x64.
-- Repository này đã được clone về máy.
-- Bản **Windows CPU/oneDNN** của Lc0 do người dùng tự tải từ
-  [trang tải chính thức của Lc0](https://lczero.org/play/download/).
-- Thư mục Lc0 phải có:
-  - `lc0.exe`;
-  - `dnnl.dll`;
-  - đúng **một** file weight `*.pb.gz`, nằm ở thư mục Lc0 hoặc trong
-    `weights/`.
+## Supported setups
 
-LC0 Bot không tải, đóng gói, sao chép hoặc sửa đổi `lc0.exe`, DLL hay weight.
+- Windows x64 with Google Chrome or Brave, plus the official Windows CPU/oneDNN Lc0 package supplied by the user.
+- Ubuntu 22.04 or newer, x86_64, with Google Chrome or Brave.
+- Ubuntu installation builds Lc0 `v0.32.1` locally with the CPU BLAS/OpenBLAS backend. The install script does not distribute a prebuilt Lc0 binary.
+- The included default network is `assets/weights/evilgyal-6.pb.gz`. Keep exactly one `.pb.gz` file in the active engine weight directory; users can replace the default with another network.
 
-## Cài đặt cho người dùng
+## Install on Windows
 
-1. Tải file Setup duy nhất từ GitHub Release:
-   `LC0Bot-Setup-YYYY.MM.DD.exe`.
-2. Chạy Setup và chọn thư mục Lc0 đã giải nén. Setup chỉ cài Native Messaging
-   host vào `%LOCALAPPDATA%\LC0Bot` và đăng ký nó cho Windows user hiện tại.
-3. Mở `chrome://extensions`, bật **Developer mode**, chọn **Load unpacked** và
-   chọn thư mục `lc0-bot-extension/extension/`.
-4. Mở popup của LC0 Bot. Thông báo `Local LC0 host is ready.` xác nhận config,
-   `lc0.exe`, `dnnl.dll` và weight hiện hợp lệ.
-5. Mở trang Chess.com thuộc `/play/`, `/game/` hoặc `/puzzles/`. Nút **LC0**
-   màu xanh mở bảng thiết lập Auto Run, Auto Move, chế độ tính nước
-   (`Move Time` hoặc `Nodes`), giá trị tìm kiếm và độ trễ ngẫu nhiên.
+1. Download and extract the official Lc0 Windows CPU/oneDNN package. Keep `lc0.exe`, `dnnl.dll`, and exactly one `.pb.gz` network in the folder or its `weights/` subfolder. If you need the included default network, copy `assets/weights/evilgyal-6.pb.gz` into the Lc0 folder or its `weights/` subfolder.
+2. Run `LC0Bot-Setup-YYYY.MM.DD.exe` and select the extracted Lc0 folder. Setup installs the Native host for the current Windows user and registers it for Chrome and Brave.
+3. Open `chrome://extensions` in Chrome or Brave, enable **Developer mode**, choose **Load unpacked**, and select `lc0-bot-extension/extension/`.
+4. Open the LC0 Bot popup. `Local LC0 host is ready.` means the host configuration, engine files, and network were found.
 
-Ở chế độ `Move Time`, Lc0 nhận lệnh UCI dạng `go movetime <milliseconds>`.
-Ở chế độ `Nodes`, Lc0 nhận lệnh `go nodes <number>`; giá trị nodes được giới
-hạn từ 1 đến 10000. Nodes là ngân sách search/visit của Lc0, không phải một
-quy đổi cố định từ giây sang thời gian thực.
+## Install on Ubuntu
 
-Nếu popup báo host không sẵn sàng, đọc nguyên văn lỗi: host phân biệt rõ thư
-mục Lc0 bị di chuyển, thiếu `lc0.exe`, thiếu `dnnl.dll`, không có weight hoặc
-có nhiều weight.
+From a terminal opened in this repository, run:
 
-## Đổi weight mà không chạy lại Setup
+```bash
+bash lc0-bot-extension/scripts/install-ubuntu.sh
+```
 
-1. Thay file `*.pb.gz` cũ bằng weight mới trong thư mục Lc0 hoặc `weights/`.
-2. Đảm bảo tổng cộng chỉ còn đúng một file `*.pb.gz` ở hai vị trí đó; tên file
-   có thể tùy ý.
-3. Trong `chrome://extensions`, bấm **Reload** LC0 Bot; sau đó hard reload
-   trang Chess.com nếu đang mở.
+The script checks for Ubuntu 22.04+ x86_64, installs missing build dependencies with `apt` (asking for `sudo` only for that system-package step), clones the pinned Lc0 source tag with its submodule, and builds the CPU/OpenBLAS engine. The first build needs an internet connection and may take several minutes. The source/build cache is kept under `~/.cache/lc0bot/`; the installed engine, host, configuration, and default network are kept under `~/.local/share/lc0bot/`.
 
-Native host được khởi động lại và quét weight mới. Chỉ cần chạy Setup lại khi
-thư mục Lc0 bị di chuyển hoặc cần cấu hình lại host.
+After the script reports success:
 
-## Cập nhật extension
+1. Open `chrome://extensions` in Chrome or Brave, enable **Developer mode**, choose **Load unpacked**, and select `lc0-bot-extension/extension/`.
+2. Open a supported Chess.com page. The popup should report `Local LC0 host is ready.`
 
-Khi chỉ có thay đổi trong `extension/`, Setup không đổi. Cập nhật source bằng
-`git pull`, bấm **Reload** extension trong `chrome://extensions`, rồi hard
-reload trang Chess.com.
+The script registers the host for Google Chrome and Brave. If source checkout, dependency installation, or engine compilation fails, it stops before registering the manifests.
 
-MAIN world của extension chỉ làm việc với API bàn cờ Chess.com qua state nội bộ
-`__LC0BotMain`. Storage, scheduler và Native Messaging chạy ở isolated world;
-trang Chess.com không có đường gọi trực tiếp Native Messaging host.
+## Change the network
 
-## Phát triển và phát hành
+Keep exactly one `.pb.gz` file in the active engine's root or `weights/` folder.
 
-Người dùng cuối không cần build local. Maintainer cần Python 3.12+ và Inno
-Setup 6+ để build thủ công:
+- **Windows:** replace the existing network in the Lc0 folder or `weights/`.
+- **Ubuntu:** replace the network under `~/.local/share/lc0bot/engine/weights/`.
+
+The Ubuntu install script preserves an existing user network when run again. To apply a changed network, reload the extension in `chrome://extensions` and reload the Chess.com tab. If the popup reports multiple networks, leave only the network you want to use.
+
+## Use and search settings
+
+On a supported Chess.com page, the green **LC0** button opens settings for Auto Run, Auto Move, search mode (`Move Time` or `Nodes`), search limit, and random delay.
+
+`Move Time` sends `go movetime <milliseconds>` to Lc0. `Nodes` sends `go nodes <number>` and is limited to 1–10000. Nodes are a search budget, not a fixed conversion to real time.
+
+## Troubleshooting
+
+- If the popup says the host is unavailable, run the platform setup again and read its full error message.
+- On Windows, the selected folder must still contain `lc0.exe`, `dnnl.dll`, and exactly one network.
+- On Ubuntu, confirm the script completed, `~/.local/share/lc0bot/engine/lc0` is executable, and exactly one network exists in its `weights/` folder.
+- If a build fails, keep the output and rerun the script after resolving the named missing package or compiler error. The script reuses the pinned source and Meson build directory.
+- On Ubuntu, use Google Chrome or Brave; the installer registers Native Messaging for these browsers.
+
+## Development and release
+
+The extension source remains in `extension/`. Reload the unpacked extension in `chrome://extensions` after changing extension files, then reload the Chess.com tab.
+
+To build the Windows Native host and Setup from the repository root, maintainers need Python 3.12+ and Inno Setup 6+:
 
 ```powershell
 cd lc0-bot-extension
-.\build-native-host.ps1
-iscc "/DMyAppVersion=2026.07.30" LC0Bot.iss
+.\packaging\windows\build-native-host.ps1
+iscc "/DMyAppVersion=2026.07.30" packaging\windows\LC0Bot.iss
 ```
 
-`LC0Bot.iss` tạo installer per-user, chỉ hỗ trợ kiến trúc chạy x64 và dùng fixed
-public extension key. Nhờ đó Native Messaging host chỉ chấp nhận LC0 Bot mà
-không yêu cầu người dùng nhập Extension ID.
+The Windows Setup remains a per-user installer and uses the fixed extension ID in `packaging/windows/LC0Bot.iss`. The GitHub workflow builds that Windows Setup. Ubuntu users run `scripts/install-ubuntu.sh` from the unpacked source repository.
 
-Workflow `.github/workflows/release-lc0-bot.yml` chỉ build Setup khi push vào
-`main` có thay đổi Native Host, build script/requirements, `LC0Bot.iss` hoặc
-chính workflow. Thay đổi `extension/` không tạo Setup mới. Khi chạy, workflow:
+## Folder layout
 
-1. kiểm tra cú pháp Python, JavaScript và manifest;
-2. build `lc0-native-host.exe` bằng PyInstaller;
-3. build Setup bằng Inno Setup;
-4. tạo hoặc cập nhật Release theo ngày UTC `lc0bot-vYYYY.MM.DD`.
+- `extension/` — unpacked Chrome/Brave extension; its logic is shared by both operating systems.
+- `host/` — Native Messaging host source and its focused tests.
+- `assets/weights/` — bundled default `evilgyal-6.pb.gz` network.
+- `packaging/windows/` — Windows PyInstaller and Inno Setup files.
+- `scripts/install-ubuntu.sh` — Ubuntu dependency check, Lc0 source build, and Native Messaging registration.
 
-Release chỉ có một asset được upload: `LC0Bot-Setup-YYYY.MM.DD.exe`. GitHub có
-thể hiển thị thêm hai source archive tự sinh (`.zip` và `.tar.gz`).
+Build output, source cache, user engine configuration, and installed Ubuntu engine files are not stored in this repository.
 
-## Cấu trúc thư mục
+## Licensing and responsible use
 
-- `extension/` — source unpacked Chrome extension.
-- `native_host.py` — Native Messaging host và UCI client.
-- `build-native-host.ps1`, `requirements-build.txt` — build host bằng
-  PyInstaller.
-- `LC0Bot.iss` — installer Inno Setup và đăng ký Native Messaging trên HKCU.
-- `../.github/workflows/release-lc0-bot.yml` — CI build và upload Release.
-
-`build/`, `dist/`, cache Python, PyInstaller spec và cấu hình runtime chứa
-đường dẫn máy người dùng đều bị Git ignore.
-
-## Giấy phép và sử dụng có trách nhiệm
-
-Lc0, DLL và neural-network weights được người dùng lấy trực tiếp từ Lc0; dự án
-này không phân phối chúng. Người dùng tự chịu trách nhiệm tuân thủ giấy phép
-Lc0 và các điều khoản liên quan, cũng như quy định Fair Play của Chess.com.
+Ubuntu users build Lc0 from the upstream source on their own computer; this project does not distribute an Ubuntu Lc0 binary. Lc0 is GPLv3-or-later, so users and maintainers should follow its license when using or redistributing source or binaries. The included network is separate from the Lc0 engine license. Users are responsible for following Chess.com rules and the applicable licenses for engine and network files.

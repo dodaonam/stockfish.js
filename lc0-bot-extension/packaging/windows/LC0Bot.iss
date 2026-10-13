@@ -5,9 +5,11 @@
 #define MyAppName "LC0 Bot Native Host"
 #define MyHostName "com.lc0bot.nativehost"
 #define MyExtensionId "fpcmlebcligjofgppbfhaciaildiieaj"
+#define ProjectRoot AddBackslash(SourcePath) + "..\.."
 
 [Setup]
 AppId={{B6298D39-3C23-4E14-BFE9-54B6311C70A8}
+SourceDir={#ProjectRoot}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher=LC0 Bot Contributors
@@ -108,7 +110,7 @@ end;
 
 procedure WriteHostFiles;
 var
-  ConfigPath, ManifestPath, ConfigJson, ManifestJson, RegistryKey: String;
+  ConfigPath, ManifestPath, ConfigJson, ManifestJson, RegistryKey, ChromiumRegistryKey, BraveRegistryKey: String;
 begin
   ConfigPath := ExpandConstant('{app}\engine-config.json');
   ManifestPath := ExpandConstant('{app}\com.lc0bot.nativehost.json');
@@ -118,6 +120,10 @@ begin
   SaveStringToFile(ManifestPath, ManifestJson, False);
   RegistryKey := 'Software\Google\Chrome\NativeMessagingHosts\{#MyHostName}';
   RegWriteStringValue(HKCU, RegistryKey, '', ManifestPath);
+  ChromiumRegistryKey := 'Software\Chromium\NativeMessagingHosts\{#MyHostName}';
+  RegDeleteKeyIncludingSubkeys(HKCU, ChromiumRegistryKey);
+  BraveRegistryKey := 'Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\{#MyHostName}';
+  RegWriteStringValue(HKCU, BraveRegistryKey, '', ManifestPath);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -127,5 +133,10 @@ end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
-  if CurUninstallStep = usUninstall then RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Google\Chrome\NativeMessagingHosts\{#MyHostName}');
+  if CurUninstallStep = usUninstall then
+  begin
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Google\Chrome\NativeMessagingHosts\{#MyHostName}');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Chromium\NativeMessagingHosts\{#MyHostName}');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\{#MyHostName}');
+  end;
 end;

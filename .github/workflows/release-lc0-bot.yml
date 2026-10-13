@@ -4,10 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "lc0-bot-extension/native_host.py"
-      - "lc0-bot-extension/build-native-host.ps1"
-      - "lc0-bot-extension/requirements-build.txt"
-      - "lc0-bot-extension/LC0Bot.iss"
+      - "lc0-bot-extension/host/**"
+      - "lc0-bot-extension/packaging/windows/**"
       - ".github/workflows/release-lc0-bot.yml"
 
 permissions:
@@ -33,7 +31,7 @@ jobs:
 
       - name: Validate source
         run: |
-          python -m py_compile native_host.py
+          python -m py_compile host/native_host.py
           Get-Content -Raw extension/manifest.json | ConvertFrom-Json | Out-Null
           Get-ChildItem extension -Recurse -Filter *.js | ForEach-Object {
             node --check $_.FullName
@@ -41,7 +39,7 @@ jobs:
           }
 
       - name: Build native host
-        run: .\build-native-host.ps1
+        run: .\packaging\windows\build-native-host.ps1
 
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
@@ -54,7 +52,7 @@ jobs:
           "tag=lc0bot-v$version" >> $env:GITHUB_OUTPUT
 
       - name: Build setup executable
-        run: iscc "/DMyAppVersion=${{ steps.version.outputs.value }}" LC0Bot.iss
+        run: iscc "/DMyAppVersion=${{ steps.version.outputs.value }}" packaging\windows\LC0Bot.iss
 
       - name: Create or update daily release
         env:

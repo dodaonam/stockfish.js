@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Chrome Native Messaging host for a user-supplied Windows CPU build of Lc0.
+"""Chrome/Brave Native Messaging host for a local CPU build of Lc0.
 
 This program deliberately writes protocol frames only to stdout. Diagnostics go
 to stderr so they cannot corrupt Chrome's Native Messaging stream.
@@ -171,12 +171,16 @@ class UciEngine:
 
     def _engine_path(self) -> Path:
         engine_dir = load_engine_dir(self.root)
-        path = engine_dir / "lc0.exe"
+        executable_name = "lc0.exe" if os.name == "nt" else "lc0"
+        path = engine_dir / executable_name
         if not path.is_file():
-            raise HostError("ENGINE_NOT_FOUND", f"lc0.exe was not found at {path}")
-        dnnl_path = engine_dir / "dnnl.dll"
-        if not dnnl_path.is_file():
-            raise HostError("DNNL_NOT_FOUND", f"dnnl.dll was not found at {dnnl_path}")
+            raise HostError("ENGINE_NOT_FOUND", f"{executable_name} was not found at {path}")
+        if os.name == "nt":
+            dnnl_path = engine_dir / "dnnl.dll"
+            if not dnnl_path.is_file():
+                raise HostError("DNNL_NOT_FOUND", f"dnnl.dll was not found at {dnnl_path}")
+        elif not os.access(path, os.X_OK):
+            raise HostError("ENGINE_NOT_EXECUTABLE", f"lc0 is not executable: {path}")
         return path.resolve()
 
     def _weights_path(self) -> Path:
