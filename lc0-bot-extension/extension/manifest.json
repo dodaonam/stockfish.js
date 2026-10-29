@@ -10,7 +10,9 @@
     "nativeMessaging"
   ],
   "host_permissions": [
-    "https://www.chess.com/*"
+    "https://www.chess.com/*",
+    "https://cdn.jsdelivr.net/*",
+    "https://raw.githubusercontent.com/*"
   ],
   "content_scripts": [
     {
@@ -23,7 +25,10 @@
         "core/logger.js",
         "core/state.js",
         "core/bridge-api.js",
+        "engine/stockfish-eval.js",
+        "ui/eval-bar.js",
         "ui/control-panel.js",
+        "ui/keyboard-shortcuts.js",
         "automation/scheduler.js",
         "content.js"
       ],

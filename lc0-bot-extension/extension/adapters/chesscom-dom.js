@@ -153,6 +153,7 @@
     getBoardElement,
     resolveCurrentFen,
     isMyTurn,
+    getPlayerColor,
     movePieceUci,
     highlightMoveUci,
     clearHighlights,

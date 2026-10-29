@@ -7,6 +7,7 @@
   const STORAGE_KEYS = [
     "autoRun",
     "autoMove",
+    "showEvalBar",
     "searchMode",
     "goMovetimeSec",
     "goNodes",
@@ -16,6 +17,7 @@
 
   const PANEL_STYLE = `
 #lc0-control-root{position:fixed;bottom:20px;right:20px;z-index:2147483646;font-family:'Segoe UI',Roboto,sans-serif;}
+#lc0-control-root.lc0-ui-hidden{display:none!important;}
 #lc0-control-root .lc0-toggle{width:56px;height:56px;border-radius:50%;border:none;background:#3f8f2d;color:#fff;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 10px 22px rgba(0,0,0,.28);}
 #lc0-control-root .lc0-panel{position:absolute;right:0;bottom:70px;width:320px;max-width:calc(100vw - 32px);background:#fff;border-radius:14px;box-shadow:0 14px 30px rgba(0,0,0,.25);padding:14px;opacity:0;pointer-events:none;transform:translateY(12px) scale(.98);transition:opacity .15s ease,transform .15s ease;}
 #lc0-control-root.lc0-open .lc0-panel{opacity:1;pointer-events:auto;transform:translateY(0) scale(1);}
@@ -40,6 +42,11 @@
   <div class="lc0-row">
     <input type="checkbox" id="autoMove">
     <label for="autoMove">Auto Move</label>
+  </div>
+
+  <div class="lc0-row">
+    <input type="checkbox" id="showEvalBar">
+    <label for="showEvalBar">Show Evaluation Bar</label>
   </div>
 
   <div class="lc0-row lc0-col">
@@ -112,6 +119,7 @@
     return {
       autoRun: byId("autoRun")?.checked ?? baseSettings.autoRun,
       autoMove: byId("autoMove")?.checked ?? baseSettings.autoMove,
+      showEvalBar: byId("showEvalBar")?.checked ?? baseSettings.showEvalBar,
       searchMode: byId("searchMode")?.value ?? baseSettings.searchMode,
       goMovetimeSec: readNumberOrFallback(byId("goMovetimeSec")?.value, baseSettings.goMovetimeSec),
       goNodes: readNumberOrFallback(byId("goNodes")?.value, baseSettings.goNodes),
@@ -124,6 +132,7 @@
     const normalized = {
       autoRun: !!input.autoRun,
       autoMove: !!input.autoMove,
+      showEvalBar: !!input.showEvalBar,
       searchMode: input.searchMode === "nodes" ? "nodes" : "movetime",
       goMovetimeSec: clamp(Number(input.goMovetimeSec), config.MOVETIME_SEC_MIN, config.MOVETIME_SEC_MAX),
       goNodes: Math.round(clamp(Number(input.goNodes), config.NODES_MIN, config.NODES_MAX)),
@@ -253,6 +262,7 @@
       const root = document.createElement("div");
       root.id = "lc0-control-root";
       root.style.display = runtime.extensionEnabled ? "" : "none";
+      root.classList.toggle("lc0-ui-hidden", runtime.uiHidden);
 
       const toggle = document.createElement("button");
       toggle.id = "lc0-toggle";
@@ -269,6 +279,11 @@
       root.appendChild(toggle);
       root.appendChild(panel);
       anchor.appendChild(root);
+
+      if (!runtime.uiHidden && runtime.panelWasOpenBeforeHide) {
+        root.classList.add("lc0-open");
+        toggle.setAttribute("aria-expanded", "true");
+      }
 
       toggle.addEventListener("click", () => {
         const open = root.classList.toggle("lc0-open");
@@ -287,6 +302,55 @@
   ChessBot.ui = ChessBot.ui || {};
   ChessBot.ui.controlPanel = {
     loadControlPanel,
-    syncSettingsFromPanel
+    syncSettingsFromPanel,
+    setSetting(name, value) {
+      if (name !== "autoRun" && name !== "showEvalBar") {
+        return false;
+      }
+      const nextValue = !!value;
+      settings[name] = nextValue;
+      const input = byId(name);
+      if (input) {
+        input.checked = nextValue;
+      }
+      schedulePersist({ [name]: nextValue });
+      return nextValue;
+    },
+    setPanelOpen(open) {
+      const root = document.getElementById("lc0-control-root");
+      const toggle = document.getElementById("lc0-toggle");
+      if (!root || runtime.uiHidden) {
+        return false;
+      }
+      const nextOpen = open === true;
+      root.classList.toggle("lc0-open", nextOpen);
+      toggle?.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+      return nextOpen;
+    },
+    togglePanel() {
+      const root = document.getElementById("lc0-control-root");
+      if (!root || runtime.uiHidden) {
+        return false;
+      }
+      return this.setPanelOpen(!root.classList.contains("lc0-open"));
+    },
+    setUiHidden(hidden) {
+      const root = document.getElementById("lc0-control-root");
+      if (hidden === runtime.uiHidden) {
+        return runtime.uiHidden;
+      }
+      if (hidden) {
+        runtime.panelWasOpenBeforeHide = !!root?.classList.contains("lc0-open");
+        runtime.uiHidden = true;
+        root?.classList.remove("lc0-open");
+        root?.classList.add("lc0-ui-hidden");
+        root?.querySelector(".lc0-toggle")?.setAttribute("aria-expanded", "false");
+      } else {
+        runtime.uiHidden = false;
+        root?.classList.remove("lc0-ui-hidden");
+        this.setPanelOpen(runtime.panelWasOpenBeforeHide);
+      }
+      return runtime.uiHidden;
+    }
   };
 })();

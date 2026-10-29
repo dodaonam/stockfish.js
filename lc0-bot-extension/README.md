@@ -52,6 +52,10 @@ The Ubuntu install script preserves an existing user network when run again. To 
 
 On a supported Chess.com page, the green **LC0** button opens settings for Auto Run, Auto Move, search mode (`Move Time` or `Nodes`), search limit, and random delay.
 
+The **Show Evaluation Bar** option starts a separate Stockfish WASM engine in the tab and evaluates the current position to depth 11. It works independently of Auto Run and Auto Move, including when it is the opponent's turn. Stockfish runs in a Web Worker and does not require reinstalling the LC0 Native host.
+
+On Chess.com, press `h` to hide or show the LC0 button and popup. Press `z` to open or close the popup while the button is visible. Pressing `h` again restores the popup's previous open state. Press `s` to toggle Auto Run and `b` to toggle Show Evaluation Bar; these shortcuts still work while the button is hidden. The shortcuts only apply to the LC0 Bot content script.
+
 `Move Time` sends `go movetime <milliseconds>` to Lc0. `Nodes` sends `go nodes <number>` and is limited to 1–10000. Nodes are a search budget, not a fixed conversion to real time.
 
 ## Troubleshooting

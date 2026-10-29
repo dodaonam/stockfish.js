@@ -7,6 +7,16 @@
   const config = {
     STARTING_FEN: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
     DEFAULT_SEARCH_MODE: "movetime",
+    STOCKFISH_SCRIPT_SOURCES: [
+      "https://cdn.jsdelivr.net/gh/dodaonam/stockfish.js@main/stockfish_engine/171_single_nnue/stockfish-17.1-single-a496a04.js",
+      "https://raw.githubusercontent.com/dodaonam/stockfish.js/main/stockfish_engine/171_single_nnue/stockfish-17.1-single-a496a04.js"
+    ],
+    STOCKFISH_WASM_SOURCES: [
+      "https://cdn.jsdelivr.net/gh/dodaonam/stockfish.js@main/stockfish_engine/171_single_nnue/stockfish-17.1-single-a496a04.wasm",
+      "https://raw.githubusercontent.com/dodaonam/stockfish.js/main/stockfish_engine/171_single_nnue/stockfish-17.1-single-a496a04.wasm"
+    ],
+    STOCKFISH_EVAL_DEPTH: 11,
+    STOCKFISH_EVAL_RENDER_INTERVAL_MS: 100,
     DEFAULT_MOVETIME_SEC: 0.01,
     DEFAULT_NODES: 10000,
     DEFAULT_RANDOM_DELAY_MIN_SEC: 0,
@@ -44,12 +54,31 @@
     lastRequestedAnalysisKey: null,
     lastAppliedFen: null,
     highlightForFen: null,
-    bestMoveForFen: null
+    bestMoveForFen: null,
+    evalRequestSeq: 0,
+    evalInFlightId: null,
+    evalInFlightFen: null,
+    evalInFlightKey: null,
+    lastEvaluatedFen: null,
+    lastEvaluationKey: null,
+    playerColor: null,
+    uiHidden: false,
+    panelWasOpenBeforeHide: false
+  };
+
+  const evaluationState = {
+    fen: null,
+    sideToMove: null,
+    type: null,
+    value: null,
+    depth: null,
+    updatedAt: 0
   };
 
   const settings = {
     autoRun: false,
     autoMove: false,
+    showEvalBar: false,
     searchMode: config.DEFAULT_SEARCH_MODE,
     goMovetimeSec: config.DEFAULT_MOVETIME_SEC,
     goNodes: config.DEFAULT_NODES,
@@ -60,6 +89,7 @@
   ChessBot.state = {
     config,
     runtime,
-    settings
+    settings,
+    evaluationState
   };
 })();

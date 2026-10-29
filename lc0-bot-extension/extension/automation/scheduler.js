@@ -2,7 +2,7 @@
   "use strict";
 
   const ChessBot = window.ChessBot;
-  const { config, runtime, settings } = ChessBot.state;
+  const { config, runtime, settings, evaluationState } = ChessBot.state;
 
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -25,6 +25,82 @@
       return `${fen}|nodes:${Math.round(settings.goNodes)}`;
     }
     return `${fen}|movetime:${normalizeMovetimeSec(settings.goMovetimeSec)}`;
+  }
+
+  function buildEvaluationKey(fen) {
+    return fen ? `${fen}|stockfish-depth:${config.STOCKFISH_EVAL_DEPTH}` : "";
+  }
+
+  function resetEvaluation() {
+    if (ChessBot.stockfishEval) {
+      ChessBot.stockfishEval.reset();
+    }
+    runtime.lastEvaluatedFen = null;
+    runtime.lastEvaluationKey = null;
+    runtime.evalInFlightId = null;
+    runtime.evalInFlightFen = null;
+    runtime.evalInFlightKey = null;
+    ChessBot.evalBar?.reset();
+  }
+
+  function shouldRequestEvaluation(state) {
+    if (!runtime.extensionEnabled || !settings.showEvalBar || !state?.isLiveGame || !state.fen) {
+      return false;
+    }
+    if (runtime.evalInFlightId !== null) {
+      return false;
+    }
+    const key = buildEvaluationKey(state.fen);
+    return !!key && key !== runtime.lastEvaluationKey;
+  }
+
+  function requestEvaluationForState(state) {
+    if (!shouldRequestEvaluation(state) || !ChessBot.stockfishEval) {
+      return;
+    }
+    const fen = state.fen.trim();
+    const key = buildEvaluationKey(fen);
+    const requestId = ++runtime.evalRequestSeq;
+    runtime.evalInFlightId = requestId;
+    runtime.evalInFlightFen = fen;
+    runtime.evalInFlightKey = key;
+    if (evaluationState.fen !== fen) {
+      ChessBot.stockfishEval.clearEvaluationState();
+    }
+    ChessBot.stockfishEval.analyzeFen(fen).then(result => {
+      if (runtime.evalInFlightId !== requestId || !result) {
+        return;
+      }
+      if (!settings.showEvalBar || !runtime.extensionEnabled) {
+        return;
+      }
+      return ChessBot.bridge.getPageState().then(current => {
+        if (current.fen !== fen || runtime.evalInFlightId !== requestId) {
+          return;
+        }
+        runtime.lastEvaluatedFen = fen;
+        runtime.lastEvaluationKey = key;
+        evaluationState.fen = fen;
+        evaluationState.sideToMove = (fen.split(/\s+/)[1] || "w").toLowerCase();
+        if (result.type) {
+          evaluationState.type = result.type;
+          evaluationState.value = result.value;
+          evaluationState.depth = result.depth;
+          evaluationState.updatedAt = Date.now();
+        }
+        ChessBot.evalBar?.updateEvaluationBarDisplay();
+      });
+    }).catch(error => {
+      if (runtime.extensionEnabled && settings.showEvalBar) {
+        ChessBot.logger.warn("Stockfish eval request failed", error);
+      }
+    }).finally(() => {
+      if (runtime.evalInFlightId === requestId) {
+        runtime.evalInFlightId = null;
+        runtime.evalInFlightFen = null;
+        runtime.evalInFlightKey = null;
+      }
+    });
   }
 
   function clearPending(resetLastRequested = false) {
@@ -51,6 +127,7 @@
     }
     if (!runtime.extensionEnabled) {
       clearPending(false);
+      resetEvaluation();
       ChessBot.bridge.clearHighlights().catch(() => {});
     } else {
       runtime.lastRequestedFen = null;
@@ -165,6 +242,15 @@
         ChessBot.ui.controlPanel.syncSettingsFromPanel();
         const state = await ChessBot.bridge.getPageState();
         const fen = state.fen;
+        runtime.playerColor = state.playerColor || runtime.playerColor;
+        runtime.isInActiveGame = !!(state.isLiveGame && fen);
+        if (!settings.showEvalBar) {
+          if (runtime.lastEvaluationKey || runtime.evalInFlightId !== null || evaluationState.fen) {
+            resetEvaluation();
+          }
+        } else {
+          requestEvaluationForState(state);
+        }
         if (!fen) {
           clearPending(false);
           await ChessBot.bridge.clearHighlights();

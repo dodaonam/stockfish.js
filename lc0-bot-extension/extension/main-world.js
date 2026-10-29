@@ -31,6 +31,7 @@
             boardAvailable: !!board,
             fen: dom.resolveCurrentFen(),
             isMyTurn: dom.isMyTurn(),
+            playerColor: dom.getPlayerColor(),
             isLiveGame: dom.isLiveGameContext()
           });
           break;
