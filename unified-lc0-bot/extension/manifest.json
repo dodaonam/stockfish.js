@@ -1,0 +1,83 @@
+{
+  "manifest_version": 3,
+  "name": "LC0 Bot — Chess.com & Lichess",
+  "version": "0.4.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzgjjNdKH7BSjvvzgXmbqqDgbpwWkl1biM8XjMblSNEtRzzFo9i6/RJs7oaXwNNbiYCWgfKn+ZkcPd1VaySAdKc2zsm6v0YWPJSSn7hVrdqHqIW5YgTduiuhEphsOzFHVq85Ic0UPVSGoqkoO3JApL9ve8nnrP3HhXc33RMSk04Uj96BrXrIzAUVifBDQnVm3NbsHeLlXVzXLMLQ/dcFof5NDXcJdqpXlFuwYHNOiosqF1QS2XdSZG+I62siuyvlcY7dMoniOyJdSfrvQTf4sGhrEfg5HFWIuEnqf6OzXvP1DJCkFAzVtK33KZguAatn/AWXkOciLsRWiAIOKZ2WOIwIDAQAB",
+  "description": "A single local LC0 extension for Chess.com and Lichess",
+  "permissions": [
+    "storage",
+    "tabs",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://www.chess.com/*",
+    "https://lichess.org/*",
+    "https://cdn.jsdelivr.net/*",
+    "https://raw.githubusercontent.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.chess.com/play/*",
+        "https://www.chess.com/game/*",
+        "https://www.chess.com/puzzles/*",
+        "https://lichess.org/*"
+      ],
+      "js": [
+        "core/logger.js",
+        "core/state.js",
+        "core/bridge-api.js",
+        "engine/stockfish-eval.js",
+        "ui/eval-bar.js",
+        "ui/control-panel.js",
+        "ui/keyboard-shortcuts.js",
+        "automation/scheduler.js",
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://www.chess.com/play/*",
+        "https://www.chess.com/game/*",
+        "https://www.chess.com/puzzles/*"
+      ],
+      "js": [
+        "adapters/chesscom-dom.js",
+        "main-world.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://lichess.org/*"
+      ],
+      "js": [
+        "adapters/lichess-dom.js",
+        "main-world.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "MAIN"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "LC0 Bot (Chess.com + Lichess)",
+    "default_popup": "popup.html"
+  }
+}
