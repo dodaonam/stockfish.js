@@ -1,16 +1,16 @@
-name: Release STF Bot Setup
+name: Release Stockfish Chess.com Native Setup
 
 on:
   push:
     branches: [main]
     paths:
-      - "stf-bot-extension/native_host.py"
-      - "stf-bot-extension/extension/manifest.json"
-      - "stf-bot-extension/build-native-host.ps1"
-      - "stf-bot-extension/requirements-build.txt"
-      - "stf-bot-extension/STFBot.iss"
-      - "stf-bot-extension/validate-release.py"
-      - ".github/workflows/release-stf-bot.yml"
+      - "apps/stockfish/chesscom-native/native_host.py"
+      - "apps/stockfish/chesscom-native/extension/manifest.json"
+      - "apps/stockfish/chesscom-native/build-native-host.ps1"
+      - "apps/stockfish/chesscom-native/requirements-build.txt"
+      - "apps/stockfish/chesscom-native/STFBot.iss"
+      - "apps/stockfish/chesscom-native/validate-release.py"
+      - ".github/workflows/release-stockfish-chesscom-native.yml"
 
 permissions:
   contents: write
@@ -25,7 +25,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-        working-directory: stf-bot-extension
+        working-directory: apps/stockfish/chesscom-native
     steps:
       - uses: actions/checkout@v4
 
@@ -72,7 +72,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
           RELEASE_VERSION: ${{ steps.version.outputs.value }}
-          ASSET_PATH: stf-bot-extension/dist/STFBot-Setup-${{ steps.version.outputs.value }}.exe
+          ASSET_PATH: apps/stockfish/chesscom-native/dist/STFBot-Setup-${{ steps.version.outputs.value }}.exe
           ASSET_NAME: STFBot-Setup-${{ steps.version.outputs.value }}.exe
         working-directory: .
         run: |

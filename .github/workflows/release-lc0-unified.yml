@@ -4,16 +4,16 @@ on:
   push:
     branches: [main]
     paths:
-      - "unified-lc0-bot/host/**"
-      - "unified-lc0-bot/packaging/windows/**"
-      - "unified-lc0-bot/extension/manifest.json"
-      - ".github/workflows/release-unified-lc0-bot.yml"
+      - "apps/lc0/unified/host/**"
+      - "apps/lc0/unified/packaging/windows/**"
+      - "apps/lc0/unified/extension/manifest.json"
+      - ".github/workflows/release-lc0-unified.yml"
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-unified-lc0-bot-main
+  group: release-lc0-unified-main
   cancel-in-progress: false
 
 jobs:
@@ -33,14 +33,14 @@ jobs:
 
       - name: Validate source and packaging contract
         run: |
-          python -m py_compile unified-lc0-bot/host/native_host.py
+          python -m py_compile apps/lc0/unified/host/native_host.py
           if ($LASTEXITCODE -ne 0) { throw "Native Host Python syntax validation failed." }
-          python unified-lc0-bot/packaging/windows/validate-release.py
+          python apps/lc0/unified/packaging/windows/validate-release.py
           if ($LASTEXITCODE -ne 0) { throw "Windows release source validation failed." }
 
       - name: Build standalone Native Messaging host
         run: |
-          & ./unified-lc0-bot/packaging/windows/build-native-host.ps1
+          & ./apps/lc0/unified/packaging/windows/build-native-host.ps1
           if ($LASTEXITCODE -ne 0) { throw "Native Host build failed." }
 
       - name: Install Inno Setup
@@ -72,20 +72,20 @@ jobs:
             $compiler = $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
           }
           if (-not $compiler) { throw "ISCC.exe was not found after installing Inno Setup." }
-          & $compiler "/DMyAppVersion=$env:SETUP_VERSION" "unified-lc0-bot/packaging/windows/LC0Bot.iss"
+          & $compiler "/DMyAppVersion=$env:SETUP_VERSION" "apps/lc0/unified/packaging/windows/LC0Bot.iss"
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
 
       - name: Validate Windows executable artifacts and checksum
         env:
           SETUP_VERSION: ${{ steps.version.outputs.value }}
         run: |
-          $hostExe = "unified-lc0-bot/dist/lc0-native-host.exe"
-          $setupExe = "unified-lc0-bot/dist/LC0UnifiedBot-Setup-$env:SETUP_VERSION.exe"
-          python unified-lc0-bot/packaging/windows/validate-release.py --host "$hostExe" --setup "$setupExe"
+          $hostExe = "apps/lc0/unified/dist/lc0-native-host.exe"
+          $setupExe = "apps/lc0/unified/dist/LC0UnifiedBot-Setup-$env:SETUP_VERSION.exe"
+          python apps/lc0/unified/packaging/windows/validate-release.py --host "$hostExe" --setup "$setupExe"
           if ($LASTEXITCODE -ne 0) { throw "Release artifact validation failed." }
           $hash = (Get-FileHash -LiteralPath $setupExe -Algorithm SHA256).Hash.ToLowerInvariant()
           $filename = Split-Path -Leaf $setupExe
-          "$hash  $filename" | Set-Content -LiteralPath "unified-lc0-bot/dist/SHA256SUMS.txt" -Encoding ascii
+          "$hash  $filename" | Set-Content -LiteralPath "apps/lc0/unified/dist/SHA256SUMS.txt" -Encoding ascii
 
       - name: Publish immutable GitHub Release
         env:
@@ -93,9 +93,9 @@ jobs:
           RELEASE_VERSION: ${{ steps.version.outputs.value }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
-          $setupExe = "unified-lc0-bot/dist/LC0UnifiedBot-Setup-$env:RELEASE_VERSION.exe"
-          $checksum = "unified-lc0-bot/dist/SHA256SUMS.txt"
-          $sourceUrl = "https://github.com/$env:GITHUB_REPOSITORY/tree/$env:GITHUB_SHA/unified-lc0-bot/extension"
+          $setupExe = "apps/lc0/unified/dist/LC0UnifiedBot-Setup-$env:RELEASE_VERSION.exe"
+          $checksum = "apps/lc0/unified/dist/SHA256SUMS.txt"
+          $sourceUrl = "https://github.com/$env:GITHUB_REPOSITORY/tree/$env:GITHUB_SHA/apps/lc0/unified/extension"
           $notes = @(
             "Automated Windows Native Messaging host installer from main commit $env:GITHUB_SHA.",
             "",

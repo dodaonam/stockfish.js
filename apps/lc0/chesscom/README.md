@@ -19,7 +19,7 @@ The JavaScript extension is shared by Windows and Ubuntu. The Native host is ins
 
 1. Download and extract the official Lc0 Windows CPU/oneDNN package. Keep `lc0.exe`, `dnnl.dll`, and exactly one `.pb.gz` network in the folder or its `weights/` subfolder. If you need the included default network, copy `assets/weights/evilgyal-6.pb.gz` into the Lc0 folder or its `weights/` subfolder.
 2. Run `LC0Bot-Setup-YYYY.MM.DD.exe` and select the extracted Lc0 folder. Setup installs the Native host for the current Windows user and registers it for Chrome and Brave.
-3. Open `chrome://extensions` in Chrome or Brave, enable **Developer mode**, choose **Load unpacked**, and select `lc0-bot-extension/extension/`.
+3. Open `chrome://extensions` in Chrome or Brave, enable **Developer mode**, choose **Load unpacked**, and select `apps/lc0/chesscom/extension/`.
 4. Open the LC0 Bot popup. `Local LC0 host is ready.` means the host configuration, engine files, and network were found.
 
 ## Install on Ubuntu
@@ -27,14 +27,14 @@ The JavaScript extension is shared by Windows and Ubuntu. The Native host is ins
 From a terminal opened in this repository, run:
 
 ```bash
-bash lc0-bot-extension/scripts/install-ubuntu.sh
+bash apps/lc0/chesscom/scripts/install-ubuntu.sh
 ```
 
 The script checks for Ubuntu 22.04+ x86_64, installs missing build dependencies with `apt` (asking for `sudo` only for that system-package step), clones the pinned Lc0 source tag with its submodule, and builds the CPU/OpenBLAS engine. The first build needs an internet connection and may take several minutes. The source/build cache is kept under `~/.cache/lc0bot/`; the installed engine, host, configuration, and default network are kept under `~/.local/share/lc0bot/`.
 
 After the script reports success:
 
-1. Open `chrome://extensions` in Chrome or Brave, enable **Developer mode**, choose **Load unpacked**, and select `lc0-bot-extension/extension/`.
+1. Open `chrome://extensions` in Chrome or Brave, enable **Developer mode**, choose **Load unpacked**, and select `apps/lc0/chesscom/extension/`.
 2. Open a supported Chess.com page. The popup should report `Local LC0 host is ready.`
 
 The script registers the host for Google Chrome and Brave. If source checkout, dependency installation, or engine compilation fails, it stops before registering the manifests.
@@ -73,7 +73,7 @@ The extension source remains in `extension/`. Reload the unpacked extension in `
 To build the Windows Native host and Setup from the repository root, maintainers need Python 3.12+ and Inno Setup 6+:
 
 ```powershell
-cd lc0-bot-extension
+cd apps/lc0/chesscom
 .\packaging\windows\build-native-host.ps1
 iscc "/DMyAppVersion=2026.07.30" packaging\windows\LC0Bot.iss
 ```

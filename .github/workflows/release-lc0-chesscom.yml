@@ -1,12 +1,12 @@
-name: Release LC0 Bot Setup
+name: Release LC0 Chess.com Setup
 
 on:
   push:
     branches: [main]
     paths:
-      - "lc0-bot-extension/host/**"
-      - "lc0-bot-extension/packaging/windows/**"
-      - ".github/workflows/release-lc0-bot.yml"
+      - "apps/lc0/chesscom/host/**"
+      - "apps/lc0/chesscom/packaging/windows/**"
+      - ".github/workflows/release-lc0-chesscom.yml"
 
 permissions:
   contents: write
@@ -21,7 +21,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-        working-directory: lc0-bot-extension
+        working-directory: apps/lc0/chesscom
     steps:
       - uses: actions/checkout@v4
 
@@ -59,7 +59,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
           RELEASE_VERSION: ${{ steps.version.outputs.value }}
-          ASSET_PATH: lc0-bot-extension/dist/LC0Bot-Setup-${{ steps.version.outputs.value }}.exe
+          ASSET_PATH: apps/lc0/chesscom/dist/LC0Bot-Setup-${{ steps.version.outputs.value }}.exe
           ASSET_NAME: LC0Bot-Setup-${{ steps.version.outputs.value }}.exe
         working-directory: .
         run: |
