@@ -1,60 +1,48 @@
-# Bộ công cụ phân tích cờ vua cho Chess.com
+# Bộ công cụ phân tích cờ vua — Stockfish & Lc0
 
-Repository này gồm hai Chrome extension chạy ở chế độ **Load unpacked** và một
-userscript Stockfish cũ. Mỗi thành phần dùng engine riêng; không có thành phần
-nào cần hoặc nên chạy đồng thời với thành phần còn lại trên cùng một trang cờ.
+Repository tập hợp các công cụ tích hợp **Stockfish** và **Leela Chess Zero (Lc0)** với Chess.com và Lichess. Các sản phẩm nằm trong `apps/`, phân nhóm theo **engine chính**; mỗi sản phẩm có hướng dẫn cài đặt và kiểm thử riêng.
 
-| Thành phần | Thư mục | Engine | Cách hoạt động |
-|---|---|---|---|
-| Chess Bot | `chess-bot-extension/` | Stockfish | Extension tải worker Stockfish/WASM từ repository qua CDN hoặc GitHub raw. |
-| LC0 Bot for Windows | `lc0-bot-extension/` | Lc0 CPU/oneDNN | Extension giao tiếp với Lc0 cục bộ qua Chrome Native Messaging, không dùng localhost. |
-| Userscript cũ | `chess_bot.js` | Stockfish | Dùng với Tampermonkey; chỉ giữ để tham khảo và tương thích. |
+## Sản phẩm
 
-## Chess Bot (Stockfish)
+| Sản phẩm | Thư mục | Engine chính | Website | Cách chạy engine |
+|---|---|---|---|---|
+| LC0 Unified | [`apps/lc0/unified/`](apps/lc0/unified/README.md) | Lc0 | Chess.com + Lichess | Native Messaging, Windows/Ubuntu |
+| LC0 Chess.com | [`apps/lc0/chesscom/`](apps/lc0/chesscom/README.md) | Lc0 | Chess.com | Native Messaging, Windows/Ubuntu |
+| LC0 Lichess | [`apps/lc0/lichess/`](apps/lc0/lichess/README.md) | Lc0 | Lichess | Native Messaging, Windows/Ubuntu |
+| Stockfish Web | [`apps/stockfish/chesscom-web/`](apps/stockfish/chesscom-web/README.md) | Stockfish JS/WASM | Chess.com | Web Worker |
+| Stockfish Native | [`apps/stockfish/chesscom-native/`](apps/stockfish/chesscom-native/README.md) | Stockfish | Chess.com | Native Messaging, Windows |
 
-Extension Stockfish hỗ trợ phân tích thế cờ trên các trang Chess.com thuộc
-`/play/` và `/game/`. Các tính năng hiện có gồm gợi ý nước đi, evaluation bar,
-phân loại nước đi, Auto Run, Auto Move, Eval bar only, random delay và Auto New
-Game.
+Các sản phẩm là độc lập. **Không bật đồng thời nhiều bot trên cùng một trang cờ.** Bản Unified dùng Lc0 để tìm nước; Stockfish WebAssembly trong bản này chỉ phục vụ evaluation bar.
 
-### Cài đặt
+## Cấu trúc
 
-1. Mở `chrome://extensions` trong Chrome.
-2. Bật **Developer mode**.
-3. Chọn **Load unpacked**.
-4. Chọn thư mục `chess-bot-extension/` trong repository này.
+- `apps/lc0/` — các ứng dụng dùng Lc0 làm engine chính.
+- `apps/stockfish/` — các ứng dụng dùng Stockfish làm engine chính.
+- `legacy/userscripts/` — userscript Tampermonkey đời cũ, giữ để tham khảo.
+- `stockfish_engine/` — tài nguyên Stockfish JS/WASM. **Giữ nguyên đường dẫn** vì mã nguồn và URL CDN/GitHub Raw đang phụ thuộc.
+- `docs/` — tài liệu kiến trúc, phát triển, phát hành và hình ảnh minh họa.
+- `.github/workflows/` — chỉ build/release Windows Setup khi có push/merge phù hợp vào `main`.
 
-Extension cần kết nối Internet để tải Stockfish worker/WASM từ CDN hoặc GitHub
-khi cần khởi tạo engine.
+## Bắt đầu
 
-### Sử dụng
+Đọc README của sản phẩm tương ứng trong bảng trên. Extension được cài bằng **Load unpacked** từ đúng thư mục `extension/` chứa `manifest.json` (đối với Stockfish Web, từ thư mục `apps/stockfish/chesscom-web/`).
 
-1. Mở một trang Chess.com được hỗ trợ.
-2. Dùng popup của extension để bật hoặc tắt toàn bộ extension.
-3. Dùng nút tròn trên bàn cờ để mở bảng điều khiển.
-4. Chọn các chế độ phù hợp, ví dụ Auto Run, Eval bar only, Auto Move hoặc Auto
-   New Game.
+Người dùng LC0 hoặc Stockfish native cần cài/cung cấp engine tương ứng. Windows Setup chỉ cài Native Messaging host; không tích hợp hoặc tải engine native.
 
-## LC0 Bot for Windows
+## Tài liệu dành cho người phát triển
 
-LC0 Bot dùng bản Lc0 Windows CPU/oneDNN do người dùng tự tải. Chrome giao tiếp
-với một Native Messaging host cục bộ; không có FastAPI, Python runtime cho
-người dùng cuối hoặc cổng localhost.
+- [Kiến trúc](docs/architecture.md)
+- [Phát triển và kiểm thử local](docs/development.md)
+- [Build và phát hành](docs/releasing.md)
+- [GitHub Releases](https://github.com/dodaonam/stockfish.js/releases)
 
-Hướng dẫn cài đặt, thay weight, build maintainer và CI nằm tại
-[lc0-bot-extension/README.md](lc0-bot-extension/README.md).
+## Mã nguồn cũ
 
-## Userscript Stockfish cũ
+- [Chess.com Stockfish userscript](legacy/userscripts/chesscom-stockfish.user.js)
+- [Lichess Stockfish Coach userscript](legacy/userscripts/lichess-stockfish-coach.user.js)
 
-`chess_bot.js` là userscript Tampermonkey cũ. Thành phần này không phải luồng
-khuyến nghị cho người dùng mới; hãy ưu tiên Chrome extension Stockfish hoặc
-LC0 Bot. Nếu vẫn dùng, cài Tampermonkey, tạo userscript mới và dán nội dung của
-`chess_bot.js` vào đó.
+Các userscript này chỉ được lưu trữ trong `legacy/` để tham khảo, **không còn được bảo trì hoặc kiểm thử**. Việc chuyển chúng vào `legacy/` cố ý thay đổi các URL GitHub Raw cũ; không duy trì bản sao hay đường dẫn tương thích tại repository root.
 
-## Lưu ý sử dụng
+## Sử dụng có trách nhiệm
 
-- Chỉ sử dụng công cụ này cho học tập, phân tích và luyện tập cá nhân.
-- Tuân thủ quy định Fair Play của Chess.com và quy định của giải đấu hoặc nền
-  tảng đang sử dụng.
-- Không dùng để hỗ trợ thi đấu trực tuyến, đặc biệt trong ván xếp hạng hoặc
-  giải đấu.
+Chỉ sử dụng công cụ theo quy định của website, giải đấu hoặc môi trường được phép. Không sử dụng engine assistance hay tự động thực hiện nước đi để vi phạm quy định Fair Play trong các ván đấu trực tuyến.

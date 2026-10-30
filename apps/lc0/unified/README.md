@@ -4,8 +4,8 @@ One Manifest V3 unpacked extension, one popup, one LC0 Native Messaging host and
 
 This is a separate, personal-use integration of two known-good implementations:
 
-- `lc0-bot-extension/` — Chess.com baseline.
-- `lichess-bot-extension/` — Lichess baseline.
+- `apps/lc0/chesscom/` — Chess.com baseline.
+- `apps/lc0/lichess/` — Lichess baseline.
 
 Both originals are intentionally untouched, so the new extension can be tested before replacing them.
 
@@ -26,7 +26,7 @@ The only intended user-visible difference is the single shared extension entry i
 From the repository root:
 
 ```bash
-bash unified-lc0-bot/scripts/install-ubuntu.sh
+bash apps/lc0/unified/scripts/install-ubuntu.sh
 ```
 
 The setup registers **`com.lc0bot.unifiedhost`** for Chrome and Brave and installs a small host/configuration under `~/.local/share/lc0unifiedbot/`.
@@ -46,7 +46,7 @@ The installer still checks the included default `evilgyal-6.pb.gz` checksum befo
 Then in Brave/Chrome:
 
 1. Open `brave://extensions` or `chrome://extensions`, enable **Developer mode**.
-2. Select **Load unpacked**, choose `unified-lc0-bot/extension/`.
+2. Select **Load unpacked**, choose `apps/lc0/unified/extension/`.
 3. Disable the **original** LC0 Chess.com and Lichess extensions while testing on their corresponding sites, then reload those tabs. This avoids having two UI buttons and two independent engines operating on the same game.
 4. Open Chess.com or Lichess in the active tab, click the unified popup and check **Local LC0 host is ready.**
 5. Test board detection, manual analysis/highlighting, evaluation bar, and the existing automation settings in a controlled environment.
@@ -71,12 +71,12 @@ When the engine is reused, its network stays inside the corresponding existing e
 
 **For users (no Python, Git, PyInstaller, or Inno Setup required):**
 
-1. Download the repository ZIP from GitHub (or clone it) and extract the folder `unified-lc0-bot/extension/`. Keep its `manifest.json` and `key` unchanged so the extension ID remains stable.
+1. Download the repository ZIP from GitHub (or clone it) and extract the folder `apps/lc0/unified/extension/`. Keep its `manifest.json` and `key` unchanged so the extension ID remains stable.
 2. **Separately** download and extract the official LC0 Windows CPU/oneDNN package from [Leela Chess Zero's releases](https://github.com/LeelaChessZero/lc0/releases). Choose the version that provides `lc0.exe` and `dnnl.dll`.
 3. Put **exactly one** network `.pb.gz` in that LC0 directory or in its `weights/` subdirectory. The network can be supplied separately; it is **not bundled in Setup**.
 4. Download the latest `LC0UnifiedBot-Setup-<version>.exe` from this repository's [GitHub Releases](https://github.com/dodaonam/stockfish.js/releases). The `lc0-unified-v*` tags identify **Unified** Windows Setup releases, distinct from the standalone installers. Verify the SHA-256 checksum against `SHA256SUMS.txt` if desired.
 5. Run Setup without Administrator privileges. Choose the LC0 folder containing `lc0.exe`, `dnnl.dll`, and the single network. Setup checks these files, installs only the Unified Native Messaging host under the current user's local app-data folder, and registers it for **both Chrome and Brave**.
-6. In `chrome://extensions` or `brave://extensions`, enable **Developer mode**, select **Load unpacked**, and choose the downloaded `unified-lc0-bot/extension/` folder.
+6. In `chrome://extensions` or `brave://extensions`, enable **Developer mode**, select **Load unpacked**, and choose the downloaded `apps/lc0/unified/extension/` folder.
 7. Reload the browser's supported game page and check the popup's **Local LC0 host is ready** status. A real LC0 calculation and browser integration still need separate verification.
 
 Setup does **not** download, copy, compile, modify, or distribute LC0 engine binaries or networks. The supplied engine remains in the folder chosen by the user. Setup does not touch either standalone Native Host identity.
@@ -84,19 +84,19 @@ Setup does **not** download, copy, compile, modify, or distribute LC0 engine bin
 **For developers building the installer locally on Windows:**
 
 ```powershell
-cd unified-lc0-bot
+cd apps/lc0/unified
 python packaging/windows/validate-release.py
 ./packaging/windows/build-native-host.ps1
 iscc "/DMyAppVersion=2026.10.30.1" packaging/windows/LC0Bot.iss
 python packaging/windows/validate-release.py --host dist/lc0-native-host.exe --setup dist/LC0UnifiedBot-Setup-2026.10.30.1.exe
 ```
 
-The automated Windows Setup pipeline is `.github/workflows/release-unified-lc0-bot.yml`. It runs **only on relevant pushes/merges into `main`**, never on pull requests or feature-branch pushes. The workflow builds the Native Host and Inno Setup executable on a Windows runner, checks the no-engine-bundling contract, generates `SHA256SUMS.txt`, and publishes a unique GitHub Release only after all build steps succeed. Each release points to the matching commit's extension source. Windows CI packaging validation does **not** replace a real installation and browser acceptance test.
+The automated Windows Setup pipeline is `.github/workflows/release-lc0-unified.yml`. It runs **only on relevant pushes/merges into `main`**, never on pull requests or feature-branch pushes. The workflow builds the Native Host and Inno Setup executable on a Windows runner, checks the no-engine-bundling contract, generates `SHA256SUMS.txt`, and publishes a unique GitHub Release only after all build steps succeed. Each release points to the matching commit's extension source. Windows CI packaging validation does **not** replace a real installation and browser acceptance test.
 
 ## Implementation map
 
 ```text
-unified-lc0-bot/
+apps/lc0/unified/
 ├── extension/
 │   ├── adapters/
 │   │   ├── chesscom-dom.js  (unchanged Chess.com domain mechanics)
@@ -125,9 +125,9 @@ Site-specific UI mounting is contained in a small switch in the common control p
 Run the dependency-free Node tests, Python host tests and Ubuntu shell syntax check:
 
 ```bash
-node --test unified-lc0-bot/tests/*.test.js
-python3 -m unittest discover -s unified-lc0-bot/host/tests -p 'test_*.py' -v
-bash -n unified-lc0-bot/scripts/install-ubuntu.sh
+node --test apps/lc0/unified/tests/*.test.js
+python3 -m unittest discover -s apps/lc0/unified/host/tests -p 'test_*.py' -v
+bash -n apps/lc0/unified/scripts/install-ubuntu.sh
 ```
 
 Automated test-only GitHub Actions have been removed. Adapter, integration, regression, and Native Host tests remain available locally using the commands above. Windows product build/Release validation runs separately on `main` only; successful packaging does **not** constitute real Windows installer or engine acceptance.
@@ -135,7 +135,7 @@ Automated test-only GitHub Actions have been removed. Adapter, integration, regr
 The popup's **Local LC0 host is ready** status verifies that host configuration, engine executable and a network file can be located; it does **not** execute a full UCI search. After installing on Ubuntu, run an actual local engine handshake and short calculation:
 
 ```bash
-python3 unified-lc0-bot/scripts/smoke-engine.py
+python3 apps/lc0/unified/scripts/smoke-engine.py
 ```
 
 This checks the installed unified engine and weight without altering either standalone installation. It can take a little time on CPU and reports a best move on success.

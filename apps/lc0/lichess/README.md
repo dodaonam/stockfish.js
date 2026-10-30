@@ -1,6 +1,6 @@
 # LC0 Bot for Lichess (Chrome/Brave, Windows/Ubuntu)
 
-This is the Lichess port of [LC0 Bot](../lc0-bot-extension). The scheduler,
+This is the Lichess port of [LC0 Bot](../chesscom). The scheduler,
 native LC0 engine, settings, popup, Stockfish depth-11 evaluation, highlights and
 shortcuts are copied from that extension. Only the platform integration and
 Native Messaging registration differ.
@@ -14,10 +14,10 @@ Lichess round WebSocket → Lichess page adapter → shared LC0 scheduler → na
   packaging/windows/build-native-host.ps1, then build the Windows Setup using
   packaging/windows/LC0Bot.iss, and install it.
 - Ubuntu 22.04+ x86_64: from repository root run
-  bash lichess-bot-extension/scripts/install-ubuntu.sh.
+  bash apps/lc0/lichess/scripts/install-ubuntu.sh.
   This installs a separately named native host and a local CPU/OpenBLAS LC0 build.
 - In Chrome or Brave open chrome://extensions, enable Developer Mode,
-  and Load unpacked from lichess-bot-extension/extension/.
+  and Load unpacked from apps/lc0/lichess/extension/.
 - Open a Lichess standard-chess round page and reload it if already open.
   The toolbar popup reports native-host readiness.
 
@@ -26,7 +26,7 @@ Installing it does not overwrite the Chess.com extension's native host.
 
 ## Equivalent controls
 
-- Popup: Enable Extension and LC0 host readiness, same as lc0-bot-extension.
+- Popup: Enable Extension and LC0 host readiness, same as the Chess.com LC0 standalone package.
 - In-page green LC0 button and LC0 Settings panel: Auto Run, Auto Move,
   Show Evaluation Bar, Move Time / Nodes (1–10000), search time (0.001–10 s),
   random delay range (0–30 s).
@@ -56,7 +56,7 @@ https://lichess.org/page/fair-play
 ## Source layout and engineering
 
 - extension/ — Manifest V3 Chrome/Brave extension. Shared logic is kept aligned
-  with lc0-bot-extension/extension/; adapters/lichess-dom.js is Lichess-specific.
+  with apps/lc0/chesscom/extension/; adapters/lichess-dom.js is Lichess-specific.
 - host/ — independent local LC0 Native Messaging host and tests.
 - assets/weights/ — packaged default LC0 network.
 - scripts/install-ubuntu.sh — Ubuntu installer.
@@ -70,4 +70,4 @@ the LC0 engine or network can be applied by reloading the extension and tab.
 The Lc0 engine is GPLv3-or-later. Users are responsible for licenses,
 the platform's fair-play requirements, and local installation.
 
-Static adapter regression tests: `node --test lichess-bot-extension/tests/adapter.test.js`.
+Static adapter regression tests: `node --test apps/lc0/lichess/tests/adapter.test.js`.
