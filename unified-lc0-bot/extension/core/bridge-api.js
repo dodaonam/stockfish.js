@@ -15,7 +15,11 @@
 
   async function storageGet(keys) {
     const values = await chrome.storage.local.get(keys.map(scoped));
-    return Object.fromEntries(keys.map(key => [key, values[scoped(key)]]));
+    // Missing Chrome storage keys must remain absent. Returning own properties
+    // with undefined values would override the control panel's defaults.
+    return Object.fromEntries(keys
+      .filter(key => Object.prototype.hasOwnProperty.call(values, scoped(key)))
+      .map(key => [key, values[scoped(key)]]));
   }
 
   function storageSet(values) {

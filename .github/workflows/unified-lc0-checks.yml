@@ -27,11 +27,16 @@ jobs:
       - name: Ubuntu installer syntax
         run: bash -n unified-lc0-bot/scripts/install-ubuntu.sh
       - name: Python syntax
-        run: python3 -m py_compile unified-lc0-bot/host/native_host.py
+        run: python3 -m py_compile unified-lc0-bot/host/native_host.py unified-lc0-bot/scripts/smoke-engine.py
   windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Native host tests
+      - name: Node.js adapter, integration and regression tests
+        run: node --test unified-lc0-bot/tests/adapter-chesscom.test.js unified-lc0-bot/tests/adapter-lichess.test.js unified-lc0-bot/tests/integration.test.js unified-lc0-bot/tests/regressions.test.js
+      - name: Cross-platform native host protocol tests
         shell: pwsh
         run: python -m unittest discover -s unified-lc0-bot/host/tests -p 'test_*.py' -v
+      - name: Python syntax
+        shell: pwsh
+        run: python -m py_compile unified-lc0-bot/host/native_host.py unified-lc0-bot/scripts/smoke-engine.py

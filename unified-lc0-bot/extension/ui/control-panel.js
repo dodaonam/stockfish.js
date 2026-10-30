@@ -192,13 +192,21 @@
   }
 
   let persistTimer = null;
+  let pendingSettings = {};
+  let persistQueue = Promise.resolve();
   function schedulePersist(nextSettings) {
+    // Keyboard shortcuts supply partial updates: coalesce them instead of
+    // cancelling an earlier change during the 120 ms debounce period.
+    Object.assign(pendingSettings, nextSettings);
     if (persistTimer) {
       clearTimeout(persistTimer);
     }
     persistTimer = setTimeout(() => {
       persistTimer = null;
-      persistSettings(nextSettings);
+      const snapshot = pendingSettings;
+      pendingSettings = {};
+      // Serialize writes so a previous slow storage.set cannot win a race.
+      persistQueue = persistQueue.then(() => persistSettings(snapshot));
     }, 120);
   }
 
@@ -308,6 +316,11 @@
   ChessBot.ui.controlPanel = {
     loadControlPanel,
     syncSettingsFromPanel,
+    applyExternalSettings(changes) {
+      if (changes && Object.keys(changes).length) {
+        applySettingsToInputs({ ...settings, ...changes });
+      }
+    },
     setSetting(name, value) {
       if (name !== "autoRun" && name !== "showEvalBar") {
         return false;

@@ -172,8 +172,12 @@
       }
 
       const current = await ChessBot.bridge.getPageState();
-      if (current.fen !== fen) {
-        ChessBot.logger.debug("Dropping stale bestmove result", { requestId, fenAtRequest: fen, currentFen: current.fen });
+      if (runtime.inFlightRequestId !== requestId || !runtime.extensionEnabled ||
+          !settings.autoRun || !current.isLiveGame || !current.isMyTurn ||
+          current.fen !== fen) {
+        ChessBot.logger.debug("Dropping stale bestmove result", {
+          requestId, fenAtRequest: fen, currentFen: current.fen
+        });
         return;
       }
       if (settings.autoMove) {

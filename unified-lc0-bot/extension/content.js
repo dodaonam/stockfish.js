@@ -18,6 +18,25 @@
     }
   });
 
+  // Keep tabs on the same site consistent without leaking settings across sites.
+  const sharedSettings = [
+    "autoRun", "autoMove", "showEvalBar", "searchMode", "goMovetimeSec",
+    "goNodes", "randomDelayMinSec", "randomDelayMaxSec"
+  ];
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local") return;
+    const update = {};
+    for (const key of sharedSettings) {
+      const change = changes[`platform.${platform}.${key}`];
+      if (change && Object.prototype.hasOwnProperty.call(change, "newValue")) {
+        update[key] = change.newValue;
+      }
+    }
+    if (Object.keys(update).length) {
+      window.ChessBot?.ui?.controlPanel?.applyExternalSettings(update);
+    }
+  });
+
   async function start() {
     if (started || !window.ChessBot?.scheduler) return;
     started = true;

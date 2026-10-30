@@ -39,6 +39,8 @@ The script first looks for a usable existing LC0 CPU executable and exactly one 
 
 If one is found, it **reuses the engine without rebuilding or modifying its executable/weight**. If none exists, it builds the same pinned LC0 `v0.32.1` CPU/OpenBLAS engine as the standalone scripts, using `~/.cache/lc0unifiedbot`.
 
+**Engine parity:** If you customized the two standalone installations with different LC0 networks or builds, the unified host cannot preserve both choices simultaneously: it uses the first valid engine in the priority list above. Compare the actual engine and weight used by each old bot before accepting parity; the default network committed in the three folders is identical.
+
 The installer still checks the included default `evilgyal-6.pb.gz` checksum before proceeding; it installs that network only when making a fresh engine.
 
 Then in Brave/Chrome:
@@ -118,14 +120,27 @@ python3 -m unittest discover -s unified-lc0-bot/host/tests -p 'test_*.py' -v
 bash -n unified-lc0-bot/scripts/install-ubuntu.sh
 ```
 
-The GitHub Actions workflow `.github/workflows/unified-lc0-checks.yml` runs these checks (including host tests on Windows). These are automated checks only; they do not replace testing in **real Brave/Chrome sessions** with the LC0 engine on both sites.
+The GitHub Actions workflow `.github/workflows/unified-lc0-checks.yml` runs adapter, integration and regression tests, plus cross-platform host protocol tests on Ubuntu and Windows. Windows protocol tests do **not** constitute a Windows installer or real-engine acceptance test.
+
+The popup's **Local LC0 host is ready** status verifies that host configuration, engine executable and a network file can be located; it does **not** execute a full UCI search. After installing on Ubuntu, run an actual local engine handshake and short calculation:
+
+```bash
+python3 unified-lc0-bot/scripts/smoke-engine.py
+```
+
+This checks the installed unified engine and weight without altering either standalone installation. It can take a little time on CPU and reports a best move on success.
+
+These automated and CLI checks do not replace testing in **real Brave/Chrome sessions** with the LC0 engine on both sites.
 
 ### Manual acceptance before merging
 
 - [ ] Host status ready with only the unified Native Host installed.
 - [ ] Chess.com parity: board state/FEN, orientation, side-to-move, highlights, automation, popup, evaluation and shortcuts.
 - [ ] Lichess parity: same features plus round bootstrap, WebSocket confirmation, spectator/nonstandard-game guard.
-- [ ] Per-site toggle/settings isolation after browser restart.
+- [ ] Fresh install and partially stored settings retain defaults: Move Time 0.01 s, Nodes 10000.
+- [ ] Pressing `s` and `b` rapidly persists both changes; reopening the tab retains them.
+- [ ] Disabling Auto Run while a request is in flight prevents its late result from executing a move.
+- [ ] Per-site toggle/settings isolation after browser restart, and live same-site synchronization across tabs.
 - [ ] Multiple tabs and both sites open simultaneously: no stale move applied to the wrong tab.
 - [ ] Original installations remain untouched and usable after unified test is disabled.
 - [ ] Windows installation and Chrome compatibility, if required.
