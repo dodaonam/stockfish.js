@@ -18,7 +18,7 @@ The JavaScript extension is shared by Windows and Ubuntu. The Native host is ins
 ## Install on Windows
 
 1. Download and extract the official Lc0 Windows CPU/oneDNN package. Keep `lc0.exe`, `dnnl.dll`, and exactly one `.pb.gz` network in the folder or its `weights/` subfolder. If you need the included default network, copy `assets/weights/evilgyal-6.pb.gz` into the Lc0 folder or its `weights/` subfolder.
-2. Run `LC0Bot-Setup-YYYY.MM.DD.exe` and select the extracted Lc0 folder. Setup installs the Native host for the current Windows user and registers it for Chrome and Brave.
+2. Run `LC0Bot-Setup-<version>.exe` and select the extracted Lc0 folder. Setup installs the Native host for the current Windows user and registers it for Chrome and Brave.
 3. Open `chrome://extensions` in Chrome or Brave, enable **Developer mode**, choose **Load unpacked**, and select `apps/lc0/chesscom/extension/`.
 4. Open the LC0 Bot popup. `Local LC0 host is ready.` means the host configuration, engine files, and network were found.
 
@@ -78,7 +78,7 @@ cd apps/lc0/chesscom
 iscc "/DMyAppVersion=2026.07.30" packaging\windows\LC0Bot.iss
 ```
 
-The Windows Setup remains a per-user installer and uses the fixed extension ID in `packaging/windows/LC0Bot.iss`. The GitHub workflow builds that Windows Setup. Ubuntu users run `scripts/install-ubuntu.sh` from the unpacked source repository.
+The Windows Setup remains a per-user installer and uses the fixed extension ID in `packaging/windows/LC0Bot.iss`. The GitHub workflow builds that Windows Setup on relevant pushes to `main`, using a unique version `YYYY.MM.DD.RUN_NUMBER` and tag `lc0bot-vYYYY.MM.DD.RUN_NUMBER-rRUN_ATTEMPT`. Each successful run creates a separate release containing the Setup executable and its `SHA256SUMS.txt` checksum; published assets are not overwritten. The manual `iscc` example above uses an explicit version independently of the workflow. Ubuntu users run `scripts/install-ubuntu.sh` from the unpacked source repository.
 
 ## Folder layout
 

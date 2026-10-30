@@ -50,4 +50,4 @@ Do not change `manifest.key`, fixed extension IDs, native host names, allowed or
 
 ## Product lifecycle
 
-The two standalone Lc0 products remain first-class apps until their maintenance/release status is explicitly changed. `legacy/userscripts/` contains older Tampermonkey integrations only.
+The two standalone Lc0 products remain first-class apps until their maintenance/release status is explicitly changed. `legacy/userscripts/` contains older Tampermonkey integrations only. These archived scripts are unsupported and are not part of current runtime, build or test acceptance. Their old root-level GitHub Raw URLs are intentionally not preserved.

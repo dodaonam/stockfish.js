@@ -9,7 +9,7 @@ build/
 dist/
 *.spec
 engine-config.json
-com.lc0bot.nativehost.json
+com.lc0bot.lichessnativehost.json
 
 # Editor and runtime noise
 *.log

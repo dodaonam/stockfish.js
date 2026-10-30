@@ -9,7 +9,7 @@ Repository tập hợp các công cụ tích hợp **Stockfish** và **Leela Che
 | LC0 Unified | [`apps/lc0/unified/`](apps/lc0/unified/README.md) | Lc0 | Chess.com + Lichess | Native Messaging, Windows/Ubuntu |
 | LC0 Chess.com | [`apps/lc0/chesscom/`](apps/lc0/chesscom/README.md) | Lc0 | Chess.com | Native Messaging, Windows/Ubuntu |
 | LC0 Lichess | [`apps/lc0/lichess/`](apps/lc0/lichess/README.md) | Lc0 | Lichess | Native Messaging, Windows/Ubuntu |
-| Stockfish Web | [`apps/stockfish/chesscom-web/`](apps/stockfish/chesscom-web/) | Stockfish JS/WASM | Chess.com | Web Worker |
+| Stockfish Web | [`apps/stockfish/chesscom-web/`](apps/stockfish/chesscom-web/README.md) | Stockfish JS/WASM | Chess.com | Web Worker |
 | Stockfish Native | [`apps/stockfish/chesscom-native/`](apps/stockfish/chesscom-native/README.md) | Stockfish | Chess.com | Native Messaging, Windows |
 
 Các sản phẩm là độc lập. **Không bật đồng thời nhiều bot trên cùng một trang cờ.** Bản Unified dùng Lc0 để tìm nước; Stockfish WebAssembly trong bản này chỉ phục vụ evaluation bar.
@@ -41,7 +41,7 @@ Người dùng LC0 hoặc Stockfish native cần cài/cung cấp engine tương 
 - [Chess.com Stockfish userscript](legacy/userscripts/chesscom-stockfish.user.js)
 - [Lichess Stockfish Coach userscript](legacy/userscripts/lichess-stockfish-coach.user.js)
 
-Các userscript này không phải luồng cài đặt ưu tiên cho người dùng mới.
+Các userscript này chỉ được lưu trữ trong `legacy/` để tham khảo, **không còn được bảo trì hoặc kiểm thử**. Việc chuyển chúng vào `legacy/` cố ý thay đổi các URL GitHub Raw cũ; không duy trì bản sao hay đường dẫn tương thích tại repository root.
 
 ## Sử dụng có trách nhiệm
 

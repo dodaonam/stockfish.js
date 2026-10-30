@@ -16,7 +16,7 @@ STF Bot không tải, sao chép hoặc sửa đổi binary Stockfish.
 
 ## Cài đặt
 
-1. Chạy `STFBot-Setup-YYYY.MM.DD.exe` và chọn trực tiếp file executable Stockfish (`.exe`). Có thể chọn binary AVX2, BMI2 hoặc SSE4.1 phù hợp với CPU.
+1. Chạy `STFBot-Setup-<version>.exe` và chọn trực tiếp file executable Stockfish (`.exe`). Có thể chọn binary AVX2, BMI2 hoặc SSE4.1 phù hợp với CPU.
 2. Setup cài native host vào `%LOCALAPPDATA%\STFBot` và đăng ký host cho Windows user hiện tại.
 3. Mở `chrome://extensions`, bật Developer mode, chọn Load unpacked và chọn thư mục `apps\stockfish\chesscom-native\extension\`.
 4. Mở popup STF Bot. Trạng thái host xác nhận executable và cấu hình đã được tìm thấy.
@@ -59,7 +59,7 @@ STF Bot có extension key, native host name, config, storage namespace và insta
 
 ## Release
 
-Workflow `.github/workflows/release-stockfish-chesscom-native.yml` tạo release riêng theo tag `stfbot-vYYYY.MM.DD` và upload asset `STFBot-Setup-YYYY.MM.DD.exe`.
+Workflow `.github/workflows/release-stockfish-chesscom-native.yml` chỉ chạy trên push phù hợp vào `main`. Mỗi lần chạy thành công tạo một release riêng với tag `stfbot-vYYYY.MM.DD.RUN_NUMBER-rRUN_ATTEMPT`, kèm `STFBot-Setup-<version>.exe` và `SHA256SUMS.txt`. Không ghi đè file của lần phát hành trước; tag được gắn với commit đã dùng để build. Lệnh `iscc` thủ công ở trên vẫn sử dụng phiên bản do người build chỉ định.
 
 ## License
 

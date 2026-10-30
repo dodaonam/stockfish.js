@@ -44,17 +44,18 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
 
-      - name: Set daily version
+      - name: Compute unique release version
         id: version
         run: |
-          $version = [DateTime]::UtcNow.ToString('yyyy.MM.dd')
+          $version = [DateTime]::UtcNow.ToString('yyyy.MM.dd') + '.' + $env:GITHUB_RUN_NUMBER
+          $tag = 'lc0bot-v{0}-r{1}' -f $version, $env:GITHUB_RUN_ATTEMPT
           "value=$version" >> $env:GITHUB_OUTPUT
-          "tag=lc0bot-v$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
 
       - name: Build setup executable
         run: iscc "/DMyAppVersion=${{ steps.version.outputs.value }}" packaging\windows\LC0Bot.iss
 
-      - name: Create or update daily release
+      - name: Validate and publish commit-bound GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
@@ -63,15 +64,19 @@ jobs:
           ASSET_NAME: LC0Bot-Setup-${{ steps.version.outputs.value }}.exe
         working-directory: .
         run: |
-          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            $release = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json assets | ConvertFrom-Json
-            foreach ($asset in $release.assets) {
-              if ($asset.name -ne $env:ASSET_NAME) {
-                gh release delete-asset $env:RELEASE_TAG $asset.name --yes --repo $env:GITHUB_REPOSITORY
-              }
-            }
-            gh release upload $env:RELEASE_TAG $env:ASSET_PATH --clobber --repo $env:GITHUB_REPOSITORY
-          } else {
-            gh release create $env:RELEASE_TAG $env:ASSET_PATH --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "LC0 Bot Setup $env:RELEASE_VERSION" --notes "Automated Windows setup build from commit $env:GITHUB_SHA."
-          }
+          if (-not (Test-Path -LiteralPath $env:ASSET_PATH -PathType Leaf)) { throw "Missing Setup executable: $env:ASSET_PATH" }
+          if ((Get-Item -LiteralPath $env:ASSET_PATH).Length -le 0) { throw "Setup executable is empty." }
+          $hash = (Get-FileHash -LiteralPath $env:ASSET_PATH -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = Join-Path (Split-Path -Parent $env:ASSET_PATH) "SHA256SUMS.txt"
+          "$hash  $env:ASSET_NAME" | Set-Content -LiteralPath $checksumPath -Encoding ascii
+          $sourceUrl = "https://github.com/$env:GITHUB_REPOSITORY/tree/$env:GITHUB_SHA/apps/lc0/chesscom/extension"
+          $notes = @(
+            "Automated Windows Native Messaging host installer from main commit $env:GITHUB_SHA.",
+            "",
+            "This release contains the native host installer; it does not bundle the chess engine or unpacked extension.",
+            "Matching extension source: $sourceUrl",
+            "Use SHA256SUMS.txt to verify the downloaded Setup file.",
+            "Windows installation and browser end-to-end acceptance must be verified separately."
+          ) -join "`n"
+          gh release create "$env:RELEASE_TAG" "$env:ASSET_PATH" "$checksumPath" --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title "LC0 Bot Setup $env:RELEASE_VERSION" --notes "$notes"
+          if ($LASTEXITCODE -ne 0) { throw "Could not publish GitHub Release." }
