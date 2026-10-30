@@ -34,8 +34,9 @@ bash -n apps/lc0/unified/scripts/install-ubuntu.sh
 bash -n apps/lc0/chesscom/scripts/install-ubuntu.sh
 bash -n apps/lc0/lichess/scripts/install-ubuntu.sh
 python3 apps/lc0/unified/packaging/windows/validate-release.py
-python3 apps/stockfish/chesscom-native/validate-release.py
 ```
+
+The Stockfish Native `validate-release.py` script requires a previously built `dist/stf-native-host.exe`; run it on Windows **after** the native host build, not as a source-only check.
 
 On Windows, follow the relevant product README to build the PyInstaller native host and Inno Setup executable. Packaging checks are not substitutes for actual Windows 11/Chrome/Brave clean-install and browser tests.
 
