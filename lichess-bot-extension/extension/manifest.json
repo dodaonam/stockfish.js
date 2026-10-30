@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "LC0 Bot for Lichess",
+  "version": "0.3.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArIxefUNNKj5L1sww1hXnwcWZgxqMQR9Z781+Cam8FCGqszh804PDrjEZ+tr7nkpZQ0jQ9Zy96Cf5xpWy4z/kEJWEimSPCTBPAbWrIByyn9nGWEVu/xZcKatKNL7qwh/DEu4NY815aI/51zHU+gGVARW1X33u8IxgVxXGPk8QxILO+m4mpg+lj0fvmqom5JMyvoovapwnfQZtigMF/YPDM5xY8Zz9WMyMRJQxzg+LH4xkzWbdJb2o2u1ijNkB1OoF1cJfpPK76P4j4bW/95ew+XA5Ml9z9Mt3HpL3LFaVlKTbl59BBtPJzNZMl3tT/KF4jKNX5lqOdvFeLr7ARwBZXQIDAQAB",
+  "description": "Lichess extension using a local LC0 Native Messaging host",
+  "permissions": [
+    "storage",
+    "tabs",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://lichess.org/*",
+    "https://cdn.jsdelivr.net/*",
+    "https://raw.githubusercontent.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://lichess.org/*"
+      ],
+      "js": [
+        "core/logger.js",
+        "core/state.js",
+        "core/bridge-api.js",
+        "engine/stockfish-eval.js",
+        "ui/eval-bar.js",
+        "ui/control-panel.js",
+        "ui/keyboard-shortcuts.js",
+        "automation/scheduler.js",
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://lichess.org/*"
+      ],
+      "js": [
+        "adapters/lichess-dom.js",
+        "main-world.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "MAIN"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "LC0 Bot for Lichess",
+    "default_popup": "popup.html"
+  }
+}
