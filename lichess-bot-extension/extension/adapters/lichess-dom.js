@@ -145,21 +145,25 @@
     return status === "started" || status === "created";
   }
 
-  function clearPending(session) {
+  function clearPending(session, confirmed = false) {
     if (!session) return;
     clearTimeout(session.pendingTimer);
+    const resolve = session.pendingResolve;
     session.pendingTimer = null;
     session.pendingMove = null;
+    session.pendingResolve = null;
+    if (resolve) resolve(confirmed);
   }
 
-  function markPending(session, move) {
+  function markPending(session, move, resolve = null) {
     clearPending(session);
     session.pendingMove = move;
+    session.pendingResolve = resolve;
     session.pendingTimer = setTimeout(() => {
       if (round !== session || !session.pendingMove) return;
       clearPending(session);
       scheduleBootstrap(session.fullId);
-    }, 6000);
+    }, 3500);
   }
 
   async function bootstrap(fullId) {
@@ -190,7 +194,8 @@
         status: data.game.status?.name || "started",
         possibleMoves: parseDests(data.possibleMoves),
         pendingMove: null,
-        pendingTimer: null
+        pendingTimer: null,
+        pendingResolve: null
       };
       if (!deriveFen(session)) throw new Error("Unable to reconstruct Lichess FEN");
       clearPending(round);
@@ -231,7 +236,8 @@
     session.steps.push({ ply, fen: move.fen, uci: move.uci, san: move.san });
     session.possibleMoves = parseDests(move.dests);
     if (move.status?.name) session.status = move.status.name;
-    clearPending(session);
+    const confirmed = session.pendingMove === String(move.uci).toLowerCase();
+    clearPending(session, confirmed);
   }
 
   function ingestMessage(meta, message) {
@@ -324,16 +330,18 @@
     if (!targets.includes(move.slice(2, 4))) return false;
     const socket = sockets.get(round.fullId);
     if (!socket || socket.readyState !== NativeWebSocket.OPEN) return false;
-    try {
-      // The official round socket sends {t:"move",d:{u:UCI}}.
-      // This transports the same UCI request; confirmation comes from the server.
-      socket.send(JSON.stringify({ t: "move", d: { u: move } }));
-      return true;
-    } catch (error) {
-      clearPending(round);
-      console.warn("[LC0 Bot] Lichess move request failed", error);
-      return false;
-    }
+    return new Promise(resolve => {
+      try {
+        // The official round socket sends {t:"move",d:{u:UCI}}.
+        // Do not report success until the authoritative inbound move confirms it.
+        socket.send(JSON.stringify({ t: "move", d: { u: move } }));
+        markPending(round, move, resolve);
+      } catch (error) {
+        clearPending(round);
+        console.warn("[LC0 Bot] Lichess move request failed", error);
+        resolve(false);
+      }
+    });
   }
 
   function clearHighlights() {

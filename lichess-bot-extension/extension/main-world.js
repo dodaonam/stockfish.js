@@ -38,7 +38,14 @@
         }
         case "MOVE": {
           const move = typeof request.move === "string" ? request.move.toLowerCase() : "";
-          respond(requestId, true, { applied: UCI_MOVE.test(move) && dom.movePieceUci(move) });
+          if (!UCI_MOVE.test(move)) {
+            respond(requestId, true, { applied: false });
+          } else {
+            Promise.resolve(dom.movePieceUci(move))
+              .then(applied => respond(requestId, true, { applied: !!applied }))
+              .catch(error => respond(requestId, false, null,
+                error instanceof Error ? error.message : "Lichess move failed"));
+          }
           break;
         }
         case "HIGHLIGHT": {

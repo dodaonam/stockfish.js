@@ -68,11 +68,12 @@ test("reconstructs standard FEN and tracks turn and move confirmation", async ()
   assert.equal(dom.resolveCurrentFen(), START + " w KQkq - 0 1");
   assert.equal(dom.isMyTurn(), true);
   assert.equal(dom.movePieceUci("e2e5"), false);
-  assert.equal(dom.movePieceUci("e2e4"), true);
+  const confirmation = dom.movePieceUci("e2e4");
   assert.equal(dom.isMyTurn(), false);
   assert.equal(socket.sent.length, 1);
   assert.equal(socket.sent[0].d.u, "e2e4");
   socket.emit("message", { t: "move", d: { ply: 1, fen: E4, uci: "e2e4", san: "e4", dests: "e7e5e6" } });
+  assert.equal(await confirmation, true);
   assert.equal(dom.resolveCurrentFen(), E4 + " b KQkq e3 0 1");
   socket.emit("message", { t: "move", d: { ply: 2, fen: E5, uci: "e7e5", san: "e5", dests: "g1f3h3" } });
   assert.equal(dom.resolveCurrentFen(), E5 + " w KQkq e6 0 2");
