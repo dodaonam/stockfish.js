@@ -6,9 +6,9 @@ Only the following **product build-and-release** workflows are maintained in `.g
 
 | Workflow | Product | Release tag format |
 |---|---|---|
-| `release-lc0-unified.yml` | `apps/lc0/unified/` | `lc0-unified-vYYYY.MM.DD.RUN_NUMBER-rRUN_ATTEMPT` |
-| `release-lc0-chesscom.yml` | `apps/lc0/chesscom/` | `lc0bot-vYYYY.MM.DD.RUN_NUMBER-rRUN_ATTEMPT` |
-| `release-stockfish-chesscom-native.yml` | `apps/stockfish/chesscom-native/` | `stfbot-vYYYY.MM.DD.RUN_NUMBER-rRUN_ATTEMPT` |
+| `release-lc0-unified.yml` | `apps/lc0/unified/` | `lc0-unified-vYYYY.MM.DD.RUN_NUMBER-runRUN_ID-rRUN_ATTEMPT` |
+| `release-lc0-chesscom.yml` | `apps/lc0/chesscom/` | `lc0bot-vYYYY.MM.DD.RUN_NUMBER-runRUN_ID-rRUN_ATTEMPT` |
+| `release-stockfish-chesscom-native.yml` | `apps/stockfish/chesscom-native/` | `stfbot-vYYYY.MM.DD.RUN_NUMBER-runRUN_ID-rRUN_ATTEMPT` |
 
 All workflows trigger **only on `push` to `main`** with product-specific path filters. They do **not** run on pull requests, feature-branch pushes, manual dispatch or schedules. There is no test-only GitHub Actions workflow. A push to `main` outside the monitored paths triggers no release for that product.
 
@@ -16,7 +16,7 @@ The standalone Lc0 Lichess application currently has a Windows installer source 
 
 ## Release identity and provenance
 
-- Each successful workflow run creates a **new, commit-bound Git tag** and GitHub Release. The UTC date, `GITHUB_RUN_NUMBER` and `GITHUB_RUN_ATTEMPT` prevent same-day pushes and reruns from reusing an existing tag.
+- Each successful workflow run creates a **new, commit-bound Git tag** and GitHub Release. The tag includes the UTC date and `GITHUB_RUN_NUMBER` for readability, plus globally unique `GITHUB_RUN_ID` and `GITHUB_RUN_ATTEMPT` for collision-free run identity. `GITHUB_RUN_NUMBER` alone is not stable across workflow renames, because the new workflow may restart numbering at 1.
 - The release points at the exact `GITHUB_SHA` used to build its installer. Release notes link to the matching extension source at that commit.
 - Published release assets are **never updated with `--clobber`**. Each automated release includes its Setup executable and `SHA256SUMS.txt` (SHA-256 checksum).
 - These versioning rules apply to **new releases only**. Historical releases, filenames and tags—including older date-only releases—are retained unchanged; no retroactive retagging or asset modification is performed.

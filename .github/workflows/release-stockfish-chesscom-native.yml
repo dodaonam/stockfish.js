@@ -55,7 +55,7 @@ jobs:
         id: version
         run: |
           $version = [DateTime]::UtcNow.ToString('yyyy.MM.dd') + '.' + $env:GITHUB_RUN_NUMBER
-          $tag = 'stfbot-v{0}-r{1}' -f $version, $env:GITHUB_RUN_ATTEMPT
+          $tag = 'stfbot-v{0}-run{1}-r{2}' -f $version, $env:GITHUB_RUN_ID, $env:GITHUB_RUN_ATTEMPT
           "value=$version" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
 
