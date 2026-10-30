@@ -67,21 +67,31 @@ Its Ubuntu and Windows installers explicitly register only that ID. Keep the `ke
 
 When the engine is reused, its network stays inside the corresponding existing engine folder. Keep exactly one `.pb.gz` file in the engine root/weights folder as required by the native host. This script does not migrate, delete or duplicate network files.
 
-## Windows / Chrome or Brave
+## Windows 11 x64 / Google Chrome or Brave
 
-The single Windows installer uses the **same** local-CPU LC0 model as the original:
+**For users (no Python, Git, PyInstaller, or Inno Setup required):**
 
-1. Supply the official CPU/oneDNN LC0 directory with `lc0.exe`, `dnnl.dll` and exactly one `.pb.gz` network.
-2. Build the Native Host and Inno Setup package from `unified-lc0-bot`:
+1. Download the repository ZIP from GitHub (or clone it) and extract the folder `unified-lc0-bot/extension/`. Keep its `manifest.json` and `key` unchanged so the extension ID remains stable.
+2. **Separately** download and extract the official LC0 Windows CPU/oneDNN package from [Leela Chess Zero's releases](https://github.com/LeelaChessZero/lc0/releases). Choose the version that provides `lc0.exe` and `dnnl.dll`.
+3. Put **exactly one** network `.pb.gz` in that LC0 directory or in its `weights/` subdirectory. The network can be supplied separately; it is **not bundled in Setup**.
+4. Download the latest `LC0UnifiedBot-Setup-<version>.exe` from this repository's [GitHub Releases](https://github.com/dodaonam/stockfish.js/releases). The `lc0-unified-v*` tags identify **Unified** Windows Setup releases, distinct from the standalone installers. Verify the SHA-256 checksum against `SHA256SUMS.txt` if desired.
+5. Run Setup without Administrator privileges. Choose the LC0 folder containing `lc0.exe`, `dnnl.dll`, and the single network. Setup checks these files, installs only the Unified Native Messaging host under the current user's local app-data folder, and registers it for **both Chrome and Brave**.
+6. In `chrome://extensions` or `brave://extensions`, enable **Developer mode**, select **Load unpacked**, and choose the downloaded `unified-lc0-bot/extension/` folder.
+7. Reload the browser's supported game page and check the popup's **Local LC0 host is ready** status. A real LC0 calculation and browser integration still need separate verification.
+
+Setup does **not** download, copy, compile, modify, or distribute LC0 engine binaries or networks. The supplied engine remains in the folder chosen by the user. Setup does not touch either standalone Native Host identity.
+
+**For developers building the installer locally on Windows:**
 
 ```powershell
-.\packaging\windows\build-native-host.ps1
-iscc "/DMyAppVersion=2026.10.30" packaging\windows\LC0Bot.iss
+cd unified-lc0-bot
+python packaging/windows/validate-release.py
+./packaging/windows/build-native-host.ps1
+iscc "/DMyAppVersion=2026.10.30.1" packaging/windows/LC0Bot.iss
+python packaging/windows/validate-release.py --host dist/lc0-native-host.exe --setup dist/LC0UnifiedBot-Setup-2026.10.30.1.exe
 ```
 
-3. Run `LC0UnifiedBot-Setup-2026.10.30.exe`, choose the LC0 folder, then Load unpacked `unified-lc0-bot/extension/`.
-
-Windows registers `com.lc0bot.unifiedhost` to this extension ID under the current user only. It does not touch the standalone installer identities.
+The automated Windows Setup pipeline is `.github/workflows/release-unified-lc0-bot.yml`. It runs **only on relevant pushes/merges into `main`**, never on pull requests or feature-branch pushes. The workflow builds the Native Host and Inno Setup executable on a Windows runner, checks the no-engine-bundling contract, generates `SHA256SUMS.txt`, and publishes a unique GitHub Release only after all build steps succeed. Each release points to the matching commit's extension source. Windows CI packaging validation does **not** replace a real installation and browser acceptance test.
 
 ## Implementation map
 
@@ -120,7 +130,7 @@ python3 -m unittest discover -s unified-lc0-bot/host/tests -p 'test_*.py' -v
 bash -n unified-lc0-bot/scripts/install-ubuntu.sh
 ```
 
-The GitHub Actions workflow `.github/workflows/unified-lc0-checks.yml` runs adapter, integration and regression tests, plus cross-platform host protocol tests on Ubuntu and Windows. Windows protocol tests do **not** constitute a Windows installer or real-engine acceptance test.
+Automated test-only GitHub Actions have been removed. Adapter, integration, regression, and Native Host tests remain available locally using the commands above. Windows product build/Release validation runs separately on `main` only; successful packaging does **not** constitute real Windows installer or engine acceptance.
 
 The popup's **Local LC0 host is ready** status verifies that host configuration, engine executable and a network file can be located; it does **not** execute a full UCI search. After installing on Ubuntu, run an actual local engine handshake and short calculation:
 
@@ -132,7 +142,7 @@ This checks the installed unified engine and weight without altering either stan
 
 These automated and CLI checks do not replace testing in **real Brave/Chrome sessions** with the LC0 engine on both sites.
 
-### Manual acceptance before merging
+### Manual acceptance before declaring end-to-end support
 
 - [ ] Host status ready with only the unified Native Host installed.
 - [ ] Chess.com parity: board state/FEN, orientation, side-to-move, highlights, automation, popup, evaluation and shortcuts.
@@ -143,7 +153,7 @@ These automated and CLI checks do not replace testing in **real Brave/Chrome ses
 - [ ] Per-site toggle/settings isolation after browser restart, and live same-site synchronization across tabs.
 - [ ] Multiple tabs and both sites open simultaneously: no stale move applied to the wrong tab.
 - [ ] Original installations remain untouched and usable after unified test is disabled.
-- [ ] Windows installation and Chrome compatibility, if required.
+- [ ] Windows 11 x64: clean install, upgrade, reinstall and uninstall; Brave and Chrome Native Messaging and real LC0 engine search on both sites; original standalone installations unaffected.
 
 ## Responsible use
 
